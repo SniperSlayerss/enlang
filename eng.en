@@ -1,0 +1,10 @@
+// using libraries:
+//      standard
+//      math.
+
+// define [function_name] to return type [return_type | int32]
+
+define list_function which returns type int32 with arguments:
+       x as a list of list of float32,
+       y as a list of float32,
+       z as a 2D array of float32,
