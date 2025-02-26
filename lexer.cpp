@@ -1,40 +1,15 @@
+#include "lexer.hpp"
 #include "magic_enum.hpp"
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <string>
-#include <unordered_set>
-#include <variant>
 
-enum class TokenType {
-  TOKEN_EOF,
-  TOKEN_KEYWORD,
-  TOKEN_IDENTIFIER,
-  TOKEN_SEPARATOR,
-  TOKEN_TYPE,
-  TOKEN_LITERAL,
-  TOKEN_CHAR,
-};
+static std::ifstream *file;
+void setCurrentFile(std::ifstream &fileToSet) { file = &fileToSet; }
 
-enum class LiteralType {
-  INT,
-  FLOAT,
-  DOUBLE,
-  CHAR,
-  STRING,
-};
-
-static const std::unordered_set<typename std::string> KEYWORDS = {
-    "define", "which", "returns", "type", "with", "arguments", "function"};
-
-struct Token {
-  TokenType type;
-  LiteralType literalType;
-  std::variant<int, double, float, char, std::string> value;
-};
-
-bool getNextChar(std::ifstream &file, char &outChar) {
-  int c = file.get();
+bool getNextChar(char &outChar) {
+  int c = file->get();
   if (c == EOF) {
     return false;
   }
@@ -42,13 +17,13 @@ bool getNextChar(std::ifstream &file, char &outChar) {
   return true;
 }
 
-static Token getNextToken(std::ifstream &file) {
-  static char lastChar = ' ';
+static char lastChar = ' ';
+Token getNextToken() {
   Token token;
 
   while (isspace(lastChar)) {
-    if (!getNextChar(file, lastChar)) {
-      token.type = TokenType::TOKEN_EOF;
+    if (!getNextChar(lastChar)) {
+      token.tokenType = TokenType::Eof;
       return token;
     }
   }
@@ -58,20 +33,20 @@ static Token getNextToken(std::ifstream &file) {
     identiferString = "";
     do {
       identiferString += lastChar;
-      if (!getNextChar(file, lastChar)) {
-        token.type = TokenType::TOKEN_EOF;
+      if (!getNextChar(lastChar)) {
+        token.tokenType = TokenType::Eof;
         return token;
       }
-    } while (isalnum(lastChar));
+    } while (isalnum(lastChar) || lastChar == '_');
 
     token.value = identiferString;
-
-    if (KEYWORDS.find(identiferString) != KEYWORDS.end()) {
-      token.type = TokenType::TOKEN_KEYWORD;
+    if (KEYWORD_MAP.find(identiferString) != KEYWORD_MAP.end()) {
+      token.tokenType = TokenType::Keyword;
+      token.keywordType = KEYWORD_MAP.at(identiferString);
       return token;
     }
 
-    token.type = TokenType::TOKEN_IDENTIFIER;
+    token.tokenType = TokenType::Identifier;
     return token;
   }
 
@@ -84,41 +59,49 @@ static Token getNextToken(std::ifstream &file) {
       isDecimal = isDecimal || lastChar == '.';
 
       numString += lastChar;
-      if (!getNextChar(file, lastChar)) {
-        token.type = TokenType::TOKEN_EOF;
+      if (!getNextChar(lastChar)) {
+        token.tokenType = TokenType::Eof;
         return token;
       }
     } while (isdigit(lastChar) || lastChar == '.');
 
-    token.type = TokenType::TOKEN_LITERAL;
+    token.tokenType = TokenType::Literal;
     // TODO: accept different literal types
-    token.literalType = LiteralType::DOUBLE;
-    token.value = std::stod(numString);
+    token.type = Type::Double;
+    token.number = std::stod(numString);
     return token;
   }
 
   if (lastChar == '/') {
-    if (!getNextChar(file, lastChar)) {
-      token.type = TokenType::TOKEN_EOF;
+    if (!getNextChar(lastChar)) {
+      token.tokenType = TokenType::Eof;
       return token;
     }
     if (lastChar == '/') {
       do {
-        if (!getNextChar(file, lastChar)) {
-          token.type = TokenType::TOKEN_EOF;
+        if (!getNextChar(lastChar)) {
+          token.tokenType = TokenType::Eof;
           return token;
         }
       } while (lastChar != '\n' && lastChar != '\r');
-      return getNextToken(file);
+      return getNextToken();
     }
   };
 
-  token.type = TokenType::TOKEN_CHAR;
+  if (SEPERATORS.find(lastChar) != SEPERATORS.end()) {
+    token.tokenType = TokenType::Seperator;
+    token.value = lastChar;
+  }
+
+  token.tokenType = TokenType::Char;
   token.value = lastChar;
-  getNextChar(file, lastChar);
+  getNextChar(lastChar);
   return token;
 }
 
+/*
+ * Test lexer
+ * */
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cerr << "Error: not enough arguments.\n"
@@ -131,29 +114,31 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  std::ifstream file(argv[1], std::ios_base::in);
-  if (!file) {
+  std::ifstream f(argv[1], std::ios_base::in);
+  if (!f) {
     std::cerr << "Error: could not open file" << std::endl;
   }
+  setCurrentFile(f);
+
 
   Token token;
-  while (token.type != TokenType::TOKEN_EOF) {
-    token = getNextToken(file);
-    switch (token.type) {
-    case TokenType::TOKEN_KEYWORD:
-    case TokenType::TOKEN_IDENTIFIER:
-    case TokenType::TOKEN_TYPE:
+  while (token.tokenType != TokenType::Eof) {
+    token = getNextToken();
+    switch (token.tokenType) {
+    case TokenType::Keyword:
+    case TokenType::Identifier:
+    case TokenType::Type:
       std::cout << magic_enum::enum_name(token.type) << " "
                 << std::get<std::string>(token.value) << std::endl;
       break;
 
-    case TokenType::TOKEN_LITERAL:
+    case TokenType::Literal:
       std::cout << magic_enum::enum_name(token.type) << " "
-                << std::get<double>(token.value) << std::endl;
+                << std::get<double>(token.number) << std::endl;
       break;
 
-    case TokenType::TOKEN_CHAR:
-    case TokenType::TOKEN_SEPARATOR:
+    case TokenType::Char:
+    case TokenType::Seperator:
       std::cout << magic_enum::enum_name(token.type) << " "
                 << std::get<char>(token.value) << std::endl;
       break;
