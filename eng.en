@@ -4,7 +4,20 @@
 
 // define [function_name] to return type [return_type | int32]
 
-define list_function which returns type int32 with arguments:
+// function defintion
+define times_func which returns type int32 with arguments:
        x as a list of list of float32,
        y as a list of float32,
-       z as a 2D array of float32,
+       z as a 2D array of float32:
+       let result equal x times y times z;
+       call foo with bar.
+
+// variable definition
+let baz equal call time_func with x, y, and z.
+
+// function call
+call foo with bar.
+
+// variable reference
+bar
+
