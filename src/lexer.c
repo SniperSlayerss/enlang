@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "utils.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -43,31 +44,13 @@ Token get_next_token(LexerContext *lexer_context) {
   }
 
   if (isalpha(lexer_context->current_char)) {
-    char *identifier;
-    size_t capacity = 16;
-    size_t length = 0;
-    identifier = malloc(capacity);
-
-    if (!identifier) {
-      printf("Could not malloc identifier");
-      exit(EXIT_FAILURE);
-    }
+    StringBuilder sb;
+    sb_init(&sb);
 
     while (isalnum(lexer_context->current_char) ||
            lexer_context->current_char == '_') {
 
-      if (length + 1 >= capacity) {
-        capacity *= 2;
-        char *tmp_identifier = realloc(identifier, capacity);
-        identifier = tmp_identifier;
-
-        if (!tmp_identifier) {
-          free(identifier);
-          exit(EXIT_FAILURE);
-        }
-      }
-
-      identifier[length++] = lexer_context->current_char;
+      sb_append(&sb, lexer_context->current_char);
 
       // TODO: Should this make sense? Should this not return identifier?
       if (get_next_char(lexer_context) == TOKEN_EOF) {
@@ -76,24 +59,24 @@ Token get_next_token(LexerContext *lexer_context) {
       }
     }
 
-    token.data.string_data = identifier;
+    token.data.string_data = sb.msg;
 
     token.token_type = TOKEN_KEYWORD;
-    if (strcmp(identifier, "define")) {
+    if (strcmp(token.data.string_data, "define")) {
       token.data.keyword_data = KEYWORD_DEFINE;
-    } else if (strcmp(identifier, "which")) {
+    } else if (strcmp(token.data.string_data, "which")) {
       token.data.keyword_data = KEYWORD_WHICH;
-    } else if (strcmp(identifier, "returns")) {
+    } else if (strcmp(token.data.string_data, "returns")) {
       token.data.keyword_data = KEYWORD_RETURN;
-    } else if (strcmp(identifier, "type")) {
+    } else if (strcmp(token.data.string_data, "type")) {
       token.data.keyword_data = KEYWORD_TYPE;
-    } else if (strcmp(identifier, "with")) {
+    } else if (strcmp(token.data.string_data, "with")) {
       token.data.keyword_data = KEYWORD_WITH;
-    } else if (strcmp(identifier, "arguments")) {
+    } else if (strcmp(token.data.string_data, "arguments")) {
       token.data.keyword_data = KEYWORD_ARGUMENT;
-    } else if (strcmp(identifier, "function")) {
+    } else if (strcmp(token.data.string_data, "function")) {
       token.data.keyword_data = KEYWORD_FUNCTION;
-    } else if (strcmp(identifier, "let")) {
+    } else if (strcmp(token.data.string_data, "let")) {
       token.data.keyword_data = KEYWORD_LET;
     } else {
       token.token_type = TOKEN_IDENTIFIER;
@@ -104,30 +87,16 @@ Token get_next_token(LexerContext *lexer_context) {
 
   if (isdigit(lexer_context->current_char) ||
       lexer_context->current_char == '.') {
-    char *number;
-    size_t capacity = 16;
-    size_t length = 0;
-    number = malloc(capacity);
+    StringBuilder sb;
+    sb_init(&sb);
 
-    bool is_decimal;
+    bool is_decimal = false;
     while (isdigit(lexer_context->current_char) ||
            lexer_context->current_char == '.')
       is_decimal = is_decimal || lexer_context->current_char == '.';
 
-    if (length + 1 >= capacity) {
-      capacity *= 2;
-      char *tmp_number = realloc(number, capacity);
-      number = tmp_number;
+    sb_append(&sb, lexer_context->current_char);
 
-      if (!tmp_number) {
-        free(number);
-        exit(EXIT_FAILURE);
-      }
-    }
-
-    number[length++] = lexer_context->current_char;
-
-    number += lexer_context->current_char;
     // TODO: IS THIS RIGHT?? SAME AS ABOVE
     if (!get_next_char(lexer_context)) {
       token.token_type = TOKEN_EOF;
@@ -138,7 +107,7 @@ Token get_next_token(LexerContext *lexer_context) {
     // TODO: accept different literal types
     token.type = TYPE_DOUBLE;
     char *end;
-    token.data.double_data = strtod(number, &end);
+    token.data.double_data = strtod(sb.msg, &end);
     return token;
   }
 
@@ -158,11 +127,6 @@ Token get_next_token(LexerContext *lexer_context) {
       return get_next_token(lexer_context);
     }
   };
-  // static const std::unordered_set<char> SEPERATORS = {'.', ',', ';'};
-  // if (SEPERATORS.find(lastChar) != SEPERATORS.end()) {
-  //   token.tokenType = TokenType::Seperator;
-  //   token.value = lastChar;
-  // }
 
   token.token_type = TOKEN_SEPERATOR;
   if (strcmp(&lexer_context->current_char, ".")) {

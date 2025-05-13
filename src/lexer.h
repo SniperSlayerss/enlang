@@ -38,7 +38,6 @@ typedef enum {
   KEYWORD_LET,
 } KeywordType;
 
-
 typedef enum {
   SEPERATOR_SEMI_COLON,
   SEPERATOR_PERIOD,
