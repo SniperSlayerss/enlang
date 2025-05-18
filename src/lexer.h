@@ -1,5 +1,6 @@
 #ifndef LEXER_H
 #define LEXER_H
+#include <stdbool.h>
 
 typedef enum {
   TOKEN_EOF,
@@ -60,10 +61,9 @@ typedef struct {
 
 typedef struct LexerContext LexerContext;
 
-LexerContext *lexer_context_create(char *file_path);
 void lexer_context_destroy(LexerContext *lexer_context);
 
-void set_current_file(LexerContext *lexer_context, char *file_path);
-Token get_next_token(LexerContext *lexer_context);
+bool set_current_file(LexerContext *lexer_context, char *file_path);
+bool get_next_token(LexerContext *lexer_context);
 
 #endif
