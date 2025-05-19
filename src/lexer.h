@@ -1,22 +1,29 @@
 #ifndef LEXER_H
 #define LEXER_H
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef enum {
+  TOKEN_ILLEGAL,
   TOKEN_EOF,
   TOKEN_KEYWORD,
   TOKEN_IDENTIFIER,
   TOKEN_SEPERATOR,
   TOKEN_TYPE,
   TOKEN_LITERAL,
-  TOKEN_CHAR,
 } TokenType;
 
 typedef enum {
-  TYPE_INT,
+  TYPE_INT8,
+  TYPE_INT16,
+  TYPE_INT32,
+  TYPE_INT64,
+  TYPE_UINT8,
+  TYPE_UINT16,
+  TYPE_UINT32,
+  TYPE_UINT64,
   TYPE_FLOAT,
   TYPE_DOUBLE,
-  TYPE_CHAR,
   TYPE_STRING,
 } Type;
 
@@ -37,20 +44,24 @@ typedef enum {
   KEYWORD_ARGUMENT,
   KEYWORD_FUNCTION,
   KEYWORD_LET,
+  KEYWORD_AND,
 } KeywordType;
 
 typedef enum {
   SEPERATOR_SEMI_COLON,
+  SEPERATOR_COLON,
   SEPERATOR_PERIOD,
   SEPERATOR_COMMA,
 } SeperatorType;
 
 typedef struct {
   TokenType token_type;
-  Type type;
   union {
-    SeperatorType seperator_data;
-    KeywordType keyword_data;
+    Type data_type;
+    SeperatorType seperator;
+    KeywordType keyword;
+  } type;
+  union {
     char char_data;
     char *string_data;
     int integer_data;
@@ -59,7 +70,11 @@ typedef struct {
   } data;
 } Token;
 
-typedef struct LexerContext LexerContext;
+typedef struct {
+  FILE *current_file;
+  char current_char;
+  Token token;
+} LexerContext;
 
 void lexer_context_destroy(LexerContext *lexer_context);
 

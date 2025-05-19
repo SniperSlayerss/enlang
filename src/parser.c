@@ -1,158 +1,153 @@
-#include "parser.hpp"
-#include "lexer.hpp"
-#include <variant>
-#include <vector>
+#include "parser.h"
+#include "lexer.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-static Token currentToken;
-
-Token getCurrentToken() { return currentToken = getNextToken(); }
-
-std::string getStringCurrentToken() {
-  if (!std::holds_alternative<std::string>(currentToken.value)) {
-    return "";
-  }
-  return std::get<std::string>(currentToken.value);
+// Helper log function
+ExprAST *log_error(const char *str) {
+  fprintf(stderr, "Error: %s\n", str);
+  return NULL;
 }
 
-char getCharCurrentToken() {
-  if (!std::holds_alternative<char>(currentToken.value)) {
-    return ' ';
-  }
-  return std::get<char>(currentToken.value);
+// Clone of LogError
+ExprAST *log_error_p(const char *str) {
+  log_error(str);
+  return NULL;
 }
 
-// ~~Helper log functions~~
-std::unique_ptr<ExprAST> LogError(const char *str) {
-  fprintf(stderr, "Error %s\n", str);
-  return nullptr;
-}
-
-std::unique_ptr<ExprAST> LogErrorP(const char *str) {
-  LogError(str);
-  return nullptr;
-}
-
-// ~~ Parsing ~~
-// 1, 1.2, 0.2
-std::unique_ptr<NumberExprAST> ParseNumberExpr() {
-  auto result =
-      std::make_unique<NumberExprAST>(currentToken.number, currentToken.type);
-  getNextToken();
-  return std::move(result);
+// Create NumberExprAST
+ExprAST *parse_number_expr(LexerContext *lc) {
+  ExprAST *expr = malloc(sizeof(ExprAST));
+  expr->type = EXPR_NUMBER;
+  expr->data.number.value = lc->token.data.double_data;
+  expr->data.number.numberType = lc->token.type.data_type;
+  get_next_token(lc); // eat the number
+  return expr;
 }
 
 // '(' expression ')'
-std::unique_ptr<ExprAST> ParseParenExpr() {
-  getNextToken(); // Eat '(' 
-  auto V = ParseExpression();
-  if (!V) {
-    return nullptr;
+// TODO: Make token L_PAREN and R_PAREN
+ExprAST *parse_paren_expr(LexerContext *lc) {
+  get_next_token(lc); // eat '('
+  ExprAST *expr = parse_expression(lc);
+  if (!expr)
+    return NULL;
+
+  if (lc->current_char != ')') {
+    return log_error("expected ')'");
   }
-  if (getCharCurrentToken() == ')') {
-    return LogError("expected ')'");
-  }
-  getNextToken(); // Eat ')'
-  return V;
+  get_next_token(lc); // eat ')'
+  return expr;
 }
 
-std::unique_ptr<ExprAST> ParseIdentifier() {
-  std::string identifier = getStringCurrentToken();
-  getNextToken();
-  return std::make_unique<VariableExprAST>(identifier);
+// Identifier expression
+ExprAST *parse_identifier(LexerContext *lc) {
+  ExprAST *expr = malloc(sizeof(ExprAST));
+  expr->type = EXPR_VARIABLE;
+  expr->data.variable.identifier = strdup(lc->token.data.string_data);
+  get_next_token(lc); // eat identifier
+  return expr;
 }
 
-/*
-  call foo.
-  call foo with bar.
-  call foo with bar, baz, and faz.
-  tokenized:
-  call foo with bar , baz , and faz .
-*/
-std::unique_ptr<ExprAST> ParseFunctionCall() {
-  getNextToken(); // Eat keyword 'call'
+// Function call expression
+ExprAST *parse_function_call(LexerContext *lc) {
+  get_next_token(lc); // eat 'call'
 
-  std::string identifier = getStringCurrentToken();
-  getNextToken(); // Eat identifier
+  char *callee = strdup(lc->token.data.string_data);
+  get_next_token(lc); // eat identifier
 
-  if (getCharCurrentToken() == '.') {
-    return std::make_unique<VariableExprAST>(identifier);
+  if (lc->token.token_type == TOKEN_SEPERATOR &&
+      lc->token.type.seperator == SEPERATOR_PERIOD) {
+    ExprAST *expr = malloc(sizeof(ExprAST));
+    expr->type = EXPR_VARIABLE;
+    expr->data.variable.identifier = callee;
+    return expr;
   }
 
-  if (getStringCurrentToken() != "with") {
-    return LogError("Expected 'with' or '.' after function call");
+  // TODO, make stuff like this macro or function??
+  if ((lc->token.token_type != TOKEN_KEYWORD &&
+       lc->token.type.keyword != KEYWORD_WITH) ||
+      (lc->token.token_type != TOKEN_SEPERATOR &&
+       lc->token.type.seperator != SEPERATOR_PERIOD)) {
+    free(callee);
+    return log_error("Expected 'with' or '.' after function call");
   }
-  getNextToken(); // Eat 'with'
+  get_next_token(lc); // eat 'with'
 
-  std::vector<std::unique_ptr<ExprAST>> Args;
-  if (getCharCurrentToken() != '.') {
-    while (true) {
-      if (auto Arg = ParseExpression()) {
-        Args.push_back(std::move(Arg));
-      } else {
-        return nullptr;
+  // Argument parsing
+  ExprAST **args = NULL;
+  size_t argCount = 0;
+
+  if (lc->current_char != '.') {
+    while (1) {
+      ExprAST *arg = parse_expression();
+      if (!arg) {
+        free(callee);
+        return NULL;
       }
 
-      if (getCharCurrentToken() == '.') {
+      args = realloc(args, (argCount + 1) * sizeof(ExprAST *));
+      args[argCount++] = arg;
+
+      if (lc->token.token_type == TOKEN_SEPERATOR &&
+          lc->token.type.seperator == SEPERATOR_PERIOD) {
         break;
       }
 
-      if (getCharCurrentToken() != ',' or getStringCurrentToken() != "and") {
-        return LogError("Expected ',' or 'and' in list of function arguments");
+      if ((lc->token.token_type != TOKEN_SEPERATOR &&
+           lc->token.type.seperator != SEPERATOR_COMMA) ||
+          (lc->token.token_type != TOKEN_KEYWORD &&
+           lc->token.type.keyword != KEYWORD_AND)) {
+        free(callee);
+        return log_error("Expected ',' or 'and' in list of function arguments");
       }
-      getNextToken();
+      get_next_token(lc); // eat separator
     }
   }
 
-  getNextToken(); // Eat '.'
-  return std::make_unique<CallExprAST>(identifier, std::move(Args));
+  get_next_token(lc); // eat '.'
+
+  ExprAST *expr = malloc(sizeof(ExprAST));
+  expr->type = EXPR_CALL;
+  expr->data.call.callee = callee;
+  expr->data.call.args = args;
+  expr->data.call.argCount = argCount;
+  return expr;
 }
 
-/*
-  Define,
-  Which,
-  Returns,
-  Type,
-  With,
-  Arguments,
-  Function,
-  Let,
- */
-static std::unique_ptr<ExprAST> ParseKeyword() {
-  // Switch matching KEYWORDS
-  switch (currentToken.keywordType) {
-  case KeywordType::Define:
-  case KeywordType::Which:
-  case KeywordType::Returns:
-  case KeywordType::Type:
-  case KeywordType::With:
-  case KeywordType::Arguments:
-  case KeywordType::Function:
-  case KeywordType::Let:
+// Parse keyword
+ExprAST *parse_keyword(LexerContext *lc) {
+  switch (lc->token.type.keyword) {
+  case KEYWORD_DEFINE:
+  case KEYWORD_WHICH:
+  case KEYWORD_RETURN:
+  case KEYWORD_TYPE:
+  case KEYWORD_WITH:
+  case KEYWORD_ARGUMENT:
+  case KEYWORD_FUNCTION:
+  case KEYWORD_LET:
+  case KEYWORD_AND:
+    return log_error("Keyword parsing not implemented yet");
+  default:
+    return log_error("Unknown keyword");
   }
 }
 
-/*
-  Eof,
-  Keyword,
-  Identifier,
-  Seperator,
-  Type,
-  Literal,
-  Char,
-*/
-
-static std::unique_ptr<ExprAST> ParsePrimary() {
-  switch (currentToken.tokenType) {
-  case TokenType::Eof:
-  case TokenType::Keyword:
-    return ParseKeyword();
-  case TokenType::Identifier:
-    return ParseIdentifier();
-    //...
-  case TokenType::Seperator:
-  case TokenType::Type:
-  case TokenType::Literal:
-  case TokenType::Char:
+// Parse primary
+ExprAST *parse_primary(LexerContext *lc) {
+  switch (lc->token.token_type) {
+  case TOKEN_KEYWORD:
+    return parse_keyword(lc);
+  case TOKEN_IDENTIFIER:
+    return parse_identifier(lc);
+  case TOKEN_LITERAL:
+    return parse_number_expr(lc);
+  case TOKEN_SEPERATOR:
+  case TOKEN_TYPE:
+  case TOKEN_EOF:
+  case TOKEN_ILLEGAL:
   default:
+    return log_error("Unexpected token in primary expression");
   }
 }
