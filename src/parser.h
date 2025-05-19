@@ -1,79 +1,71 @@
+
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.hpp"
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
+#include "lexer.h" // Assumes lexer.h defines BinaryOp, Type, NumberVariant
+#include <stdlib.h>
+#include <string.h>
 
-class ExprAST {
-public:
-  virtual ~ExprAST() = default;
-};
+typedef enum {
+  EXPR_NUMBER,
+  EXPR_VARIABLE,
+  EXPR_BINARY,
+  EXPR_CALL,
+  EXPR_SIGNATURE
+} ExprType;
 
-// Numbers
-class NumberExprAST : public ExprAST {
+typedef struct ExprAST ExprAST;
+
+// Number expression
+// TODO: add more types... good ol union baby
+typedef struct {
   Type numberType;
-  NumberVariant value;
+  double value;
+} NumberExprAST;
 
-public:
-  NumberExprAST(NumberVariant value, Type numberType)
-      : value(value), numberType(numberType) {}
-};
+// Variable expression
+typedef struct {
+  char *identifier;
+} VariableExprAST;
 
-// Variables
-class VariableExprAST : public ExprAST {
-  std::string identifer;
-
-public:
-  VariableExprAST(const std::string &identifer) : identifer(identifer) {}
-};
-
-// Binary operation
-class BinaryExprAST : public ExprAST {
+// Binary expression
+typedef struct {
   BinaryOp op;
-  std::unique_ptr<ExprAST> lhs, rhs;
+  ExprAST *lhs;
+  ExprAST *rhs;
+} BinaryExprAST;
 
-public:
-  BinaryExprAST(BinaryOp op, std::unique_ptr<ExprAST> lhs,
-                std::unique_ptr<ExprAST> rhs)
-      : op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-};
+// Call expression
+typedef struct {
+  char *callee;
+  ExprAST **args;
+  size_t argCount;
+} CallExprAST;
 
-// Function calls
-class CallExprAST : public ExprAST {
-  std::string callee;
-  std::vector<std::unique_ptr<ExprAST>> args;
+// Signature expression
+typedef struct {
+  char *name;
+  char **args;
+  Type *types;
+  size_t argCount;
+} SignatureAST;
 
-public:
-  CallExprAST(std::string callee, std::vector<std::unique_ptr<ExprAST>> args)
-      : callee(callee), args(std::move(args)) {}
-};
+// Function AST
+typedef struct {
+  SignatureAST *signature;
+  ExprAST *body;
+} FunctionAST;
 
-// Function signature
-class SignatureAST : public ExprAST {
-  std::string name;
-  std::vector<std::string> args;
-  std::vector<Type> types;
-
-public:
-  SignatureAST(const std::string &name, std::vector<std::string> args,
-               std::vector<Type> types)
-      : name(name), args(std::move(args)), types(std::move(types)) {}
-
-  const std::string &getName() const { return name; }
-};
-
-// Function definition
-class FunctionAST {
-  std::unique_ptr<SignatureAST> signature;
-  std::unique_ptr<ExprAST> body;
-
-public:
-  FunctionAST(std::unique_ptr<SignatureAST> signature,
-              std::unique_ptr<ExprAST> body)
-      : signature(std::move(signature)), body(std::move(body)) {}
+struct ExprAST {
+  ExprType type;
+  union {
+    NumberExprAST number;
+    VariableExprAST variable;
+    BinaryExprAST binary;
+    CallExprAST call;
+    SignatureAST signature;
+    FunctionAST function;
+  } data;
 };
 
 #endif
