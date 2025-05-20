@@ -1,8 +1,7 @@
-
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h" // Assumes lexer.h defines BinaryOp, Type, NumberVariant
+#include "lexer.h"
 #include <stdlib.h>
 #include <string.h>
 

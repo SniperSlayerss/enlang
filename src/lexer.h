@@ -8,7 +8,7 @@ typedef enum {
   TOKEN_EOF,
   TOKEN_KEYWORD,
   TOKEN_IDENTIFIER,
-  TOKEN_SEPERATOR,
+  TOKEN_SPECIAL,
   TOKEN_TYPE,
   TOKEN_LITERAL,
 } TokenType;
@@ -48,26 +48,32 @@ typedef enum {
 } KeywordType;
 
 typedef enum {
-  SEPERATOR_SEMI_COLON,
-  SEPERATOR_COLON,
-  SEPERATOR_PERIOD,
-  SEPERATOR_COMMA,
-} SeperatorType;
+  SPECIAL_SEMI_COLON,
+  SPECIAL_COLON,
+  SPECIAL_PERIOD,
+  SPECIAL_COMMA,
+  SPECIAL_LPAREN,
+  SPECIAL_RPAREN,
+} SpecialType;
+
+typedef union {
+  Type data_type;
+  SpecialType special;
+  KeywordType keyword;
+} TokenAttribute;
+
+typedef union {
+  char as_char;
+  char *as_string;
+  int as_int;
+  double as_double;
+  float as_float;
+} TokenValue;
 
 typedef struct {
-  TokenType token_type;
-  union {
-    Type data_type;
-    SeperatorType seperator;
-    KeywordType keyword;
-  } type;
-  union {
-    char char_data;
-    char *string_data;
-    int integer_data;
-    double double_data;
-    float float_data;
-  } data;
+  TokenType type;
+  TokenAttribute attribute;
+  TokenValue value;
 } Token;
 
 typedef struct {
@@ -80,5 +86,11 @@ void lexer_context_destroy(LexerContext *lexer_context);
 
 bool set_current_file(LexerContext *lexer_context, char *file_path);
 bool get_next_token(LexerContext *lexer_context);
+
+bool get_and_expect_token(LexerContext *lc, TokenType token_type);
+bool expect_token(LexerContext *lc, TokenType token_type);
+
+bool expect_token_with_attribute(LexerContext *lc, TokenType token_type, int token_attribute);
+bool get_and_expect_token_with_attribute(LexerContext *lc, TokenType token_type, int token_attribute);
 
 #endif
