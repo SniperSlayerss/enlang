@@ -1,0 +1,2 @@
+define times_func which returns type int32 with arguments:
+       x as a list of list of float,
