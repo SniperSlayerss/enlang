@@ -1,0 +1,6 @@
+let x equal 5.
+external printf.
+
+run main:
+    printf("X: %d", x)
+

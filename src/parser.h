@@ -2,69 +2,48 @@
 #define PARSER_H
 
 #include "lexer.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Expr Expr;
+
 typedef enum {
-  EXPR_NUMBER,
-  EXPR_VARIABLE,
-  EXPR_BINARY,
-  EXPR_CALL,
-  EXPR_SIGNATURE
+    EXPR_FUNC_CALL,
+    EXPR_FUNC_DEF,
+    EXPR_VAR_ASSIGN,
+    EXPR_EXTRN,
 } ExprType;
 
-typedef struct ExprAST ExprAST;
-
-// Number expression
-// TODO: add more types... good ol union baby
 typedef struct {
-  Type numberType;
-  double value;
-} NumberExprAST;
+    char* iden;
+    Type type;
+    Expr* assign_expr;
+} ASTVarAssign;
 
-// Variable expression
 typedef struct {
-  char *identifier;
-} VariableExprAST;
+    char* iden;
+    Expr* params;
+} ASTExtrnDef;
 
-// Binary expression
 typedef struct {
-  BinaryOp op;
-  ExprAST *lhs;
-  ExprAST *rhs;
-} BinaryExprAST;
+    char* external;
+    Expr* call;
+} ASTFuncDef;
 
-// Call expression
 typedef struct {
-  char *callee;
-  ExprAST **args;
-  size_t argCount;
-} CallExprAST;
+    char* callee;
+    Expr* body;
+} ASTFuncCall;
 
-// Signature expression
-typedef struct {
-  char *name;
-  char **args;
-  Type *types;
-  size_t argCount;
-} SignatureAST;
-
-// Function AST
-typedef struct {
-  SignatureAST *signature;
-  ExprAST *body;
-} FunctionAST;
-
-struct ExprAST {
-  ExprType type;
-  union {
-    NumberExprAST number;
-    VariableExprAST variable;
-    BinaryExprAST binary;
-    CallExprAST call;
-    SignatureAST signature;
-    FunctionAST function;
-  } data;
+struct Expr {
+    ExprType type;
+    union {
+        ASTFuncDef* func_def;
+        ASTFuncCall* func_call;
+        ASTExtrnDef* extrn_def;
+        ASTVarAssign* var_assign;
+    } data;
 };
 
 #endif
