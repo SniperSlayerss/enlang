@@ -13,6 +13,7 @@ typedef enum {
     EXPR_FUNC_DEF,
     EXPR_VAR_ASSIGN,
     EXPR_EXTRN,
+    EXPR_LITERAL,
 } ExprType;
 
 typedef struct {
@@ -36,6 +37,11 @@ typedef struct {
     Expr* body;
 } ASTFuncCall;
 
+// TODO: Allow over literal types
+typedef struct {
+    double value;
+} ASTLiteral;
+
 struct Expr {
     ExprType type;
     union {
@@ -43,6 +49,7 @@ struct Expr {
         ASTFuncCall* func_call;
         ASTExtrnDef* extrn_def;
         ASTVarAssign* var_assign;
+        ASTLiteral* literal;
     } data;
 };
 
