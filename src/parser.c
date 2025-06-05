@@ -29,7 +29,7 @@ Expr* parse_var_assign(LexerContext* lc)
 
     ASTVarAssign* var_assign = malloc(sizeof *var_assign);
     if (var_assign == NULL) {
-        printf("ERROR: Malloc for ASTVarAssign failed");
+        printf("ERROR: Malloc for ASTVarAssign* failed");
         return NULL;
     }
 
@@ -48,6 +48,28 @@ Expr* parse_var_assign(LexerContext* lc)
     return var_expr;
 }
 
+Expr* parse_literal(LexerContext* lc)
+{
+    ASTLiteral* literal = malloc(sizeof *literal);
+    if (literal == NULL) {
+        printf("ERROR: Malloc for ASTLiteral* failed");
+        return NULL;
+    }
+
+    literal->value = lc->token.value.as_double;
+
+    Expr* literal_expr = malloc(sizeof *literal_expr);
+    if (literal_expr == NULL) {
+        printf("ERROR: Malloc for ASTLiteral Expr failed");
+        return NULL;
+    }
+
+    literal_expr->type = EXPR_LITERAL;
+    literal_expr->data.literal = literal;
+
+    return literal_expr;
+}
+
 Expr* parse_keyword(LexerContext* lc)
 {
     switch (lc->token.attribute.keyword) {
@@ -58,7 +80,7 @@ Expr* parse_keyword(LexerContext* lc)
         parse_var_assign(lc);
         break;
     case KEYWORD_EXTRN:
-        NOB_TODO("KEYWORD_EXRN");
+        NOB_TODO("KEYWORD_EXTRN");
         break;
     case KEYWORD_RETURN:
         NOB_TODO("KEYWORD_RETURN");
@@ -97,7 +119,7 @@ Expr* parse_main(LexerContext* lc)
         NOB_TODO("TYPE");
         break;
     case TOKEN_LITERAL:
-        NOB_TODO("TODO TOKEN_LITERAL");
+        parse_literal(lc);
         break;
     }
 }
