@@ -13,6 +13,8 @@ define times_func which returns type int32 with arguments:
        call foo with bar.
 
 // variable definition
+let x as int16 equal 5.
+
 let baz equal call time_func with x, y, and z.
 
 // function call
