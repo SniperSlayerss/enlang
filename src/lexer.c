@@ -95,6 +95,9 @@ bool lex_get_next_token(LexerContext* lc)
         } else if (!strcmp(token.value.as_string, "and")) {
             token.type = TOKEN_KEYWORD;
             token.attribute.keyword = KEYWORD_AND;
+        } else if (!strcmp(token.value.as_string, "as")) {
+            token.type = TOKEN_KEYWORD;
+            token.attribute.keyword = KEYWORD_AS;
         } else if (!strcmp(token.value.as_string, "int8")) {
             token.type = TOKEN_TYPE;
             token.attribute.data_type = TYPE_INT8;

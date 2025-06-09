@@ -32,9 +32,17 @@ typedef struct {
     Expr* call;
 } ASTFuncDef;
 
+
+typedef struct {
+    char* arg;
+    Type type;
+} ASTArgument;
+
 typedef struct {
     char* callee;
-    Expr* body;
+    ASTArgument** args;
+    Type return_type;
+    bool is_variadic;
 } ASTFuncCall;
 
 // TODO: Allow over literal types

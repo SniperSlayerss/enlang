@@ -5,27 +5,90 @@
 
 Expr* parse_main(LexerContext* lc);
 
+Expr* parse_func_call(LexerContext* lc)
+{
+    if (!lex_get_and_expect_token(lc, TOKEN_IDENTIFIER)) { // Eat 'external'
+        printf("ERROR: Expected identifier");
+        return NULL;
+    }
+
+    char* callee = lc->token.value.as_string;
+
+    // Macro this out possibly, fun challenge
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_WHICH)) { // Eat identifier
+        printf("ERROR: Expected keyword 'which'");
+        return NULL;
+    }
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_RETURN)) { // Eat 'which'
+        printf("ERROR: Expected keyword 'returns'");
+        return NULL;
+    }
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_RETURN)) { // Eat 'returns'
+        printf("ERROR: Expected keyword 'type'");
+        return NULL;
+    }
+
+    if (!lex_get_and_expect_token(lc, TOKEN_TYPE)) { // Eat 'type'
+        printf("ERROR: Expected data type");
+        return NULL;
+    }
+
+    Type type = lc->token.attribute.data_type;
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_WITH)) { // Eat data type
+        printf("ERROR: Expected keyword 'with'");
+        return NULL;
+    }
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_ARGUMENT)) { // Eat 'with'
+        printf("ERROR: Expected keyword 'arguments'");
+        return NULL;
+    }
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_SPECIAL, SPECIAL_COLON)) { // Eat 'arguments'
+        printf("ERROR: Expected ':'");
+        return NULL;
+    }
+
+    // Loop over args, until : is reached
+    NOB_TODO("Loop over args");
+}
+
 Expr* parse_var_assign(LexerContext* lc)
 {
-    if (!lex_get_and_expect_token(lc, TOKEN_IDENTIFIER)) // Eat 'let'
-    {
-        printf("ERROR: Expected keyword 'let'");
+    if (!lex_get_and_expect_token(lc, TOKEN_IDENTIFIER)) { // Eat 'let'
+        printf("ERROR: Expected identifier");
         return NULL;
     }
 
     char* identifier = lc->token.value.as_string;
 
-    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_EQUAL)) // Eat identifier
-    {
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_EQUAL)) { // Eat identifier
         printf("ERROR: Expected keyword 'equal'");
         return NULL;
     }
 
-    lex_get_next_token(lc); // Eat 'equal'
-
     // TODO: IN FUTURE, ACCEPT DECLARTIONS OF ANY TYPE in lexer.h Type
-    // Assume a type of 32-bit signed integer as default
+    if (lex_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_AS)) {
+        NOB_TODO("Types not implemented yet");
+    }
+
+    if (!lex_get_and_expect_token(lc, TOKEN_LITERAL)) { // Eat 'equal'
+        // Placeholder till types are implemented
+        printf("ERROR: Expected literal");
+        return NULL;
+    }
+
+    // Assume a type of 16-bit signed integer as default
+    // TODO: FIX THIS SHOULD PARSE MAIN UNTIL '.'
     Expr* assign_expr = parse_main(lc);
+
+    if (!lex_get_and_expect_token_with_attribute(lc, TOKEN_SPECIAL, SPECIAL_PERIOD)) { // Eat literal
+        printf("ERROR: Expected '.'");
+        return NULL;
+    }
 
     ASTVarAssign* var_assign = malloc(sizeof *var_assign);
     if (var_assign == NULL) {
@@ -33,7 +96,7 @@ Expr* parse_var_assign(LexerContext* lc)
         return NULL;
     }
 
-    var_assign->type = TYPE_INT32;
+    var_assign->type = TYPE_INT16;
     var_assign->iden = identifier;
     var_assign->assign_expr = assign_expr;
 
@@ -80,7 +143,7 @@ Expr* parse_keyword(LexerContext* lc)
         parse_var_assign(lc);
         break;
     case KEYWORD_EXTRN:
-        NOB_TODO("KEYWORD_EXTRN");
+        parse_func_call(lc);
         break;
     case KEYWORD_RETURN:
         NOB_TODO("KEYWORD_RETURN");
@@ -92,6 +155,7 @@ Expr* parse_keyword(LexerContext* lc)
     case KEYWORD_FUNCTION:
     case KEYWORD_AND:
     case KEYWORD_EQUAL:
+    case KEYWORD_AS:
         break;
     }
 }

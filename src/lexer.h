@@ -47,6 +47,7 @@ typedef enum {
     KEYWORD_LET,
     KEYWORD_AND,
     KEYWORD_EQUAL,
+    KEYWORD_AS,
 } KeywordType;
 
 typedef enum {
