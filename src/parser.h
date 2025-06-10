@@ -12,7 +12,7 @@ typedef enum {
     EXPR_FUNC_CALL,
     EXPR_FUNC_DEF,
     EXPR_VAR_ASSIGN,
-    EXPR_EXTRN,
+    EXPR_EXTERNAL,
     EXPR_LITERAL,
 } ExprType;
 
@@ -31,7 +31,6 @@ typedef struct {
     char* external;
     Expr* call;
 } ASTFuncDef;
-
 
 typedef struct {
     char* arg;
