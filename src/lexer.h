@@ -1,5 +1,6 @@
 #ifndef LEXER_H
 #define LEXER_H
+#include "utils.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -37,7 +38,7 @@ typedef enum {
 
 typedef enum {
     KEYWORD_DEFINE,
-    KEYWORD_EXTRN,
+    KEYWORD_EXTERNAL,
     KEYWORD_WHICH,
     KEYWORD_RETURN,
     KEYWORD_TYPE,
@@ -48,6 +49,7 @@ typedef enum {
     KEYWORD_AND,
     KEYWORD_EQUAL,
     KEYWORD_AS,
+    KEYWORD_A,
 } KeywordType;
 
 typedef enum {
@@ -57,6 +59,7 @@ typedef enum {
     SPECIAL_COMMA,
     SPECIAL_LPAREN,
     SPECIAL_RPAREN,
+    SPECIAL_ELLIPSIS,
 } SpecialType;
 
 typedef union {
@@ -90,10 +93,24 @@ void lex_context_destroy(LexerContext* lexer_context);
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
 
-bool lex_get_and_expect_token(LexerContext* lc, TokenType token_type);
 bool lex_expect_token(LexerContext* lc, TokenType token_type);
+bool lex_expect_next_token(LexerContext* lc, TokenType token_type);
 
 bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
-bool lex_get_and_expect_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
+bool lex_expect_next_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
+
+#define lex_expect_next(...) lex_expect_next_impl(__VA_ARGS__, NULL)
+#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)           \
+    if (attribute) {                                                      \
+        if (!lex_expect_next_token_with_attribute(lc, type, attribute)) { \
+            LOG_ERR(err_msg);                                             \
+            return NULL;                                                  \
+        }                                                                 \
+    } else {                                                              \
+        if (!lex_expect_next_token(lc, type)) {                           \
+            LOG_ERR(err_msg);                                             \
+            return NULL;                                                  \
+        }                                                                 \
+    }
 
 #endif

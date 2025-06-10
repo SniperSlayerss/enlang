@@ -44,12 +44,11 @@ bool lex_get_next_token(LexerContext* lc)
     }
 
     if (isalpha(lc->current_char)) {
-        StringBuilder sb;
-        sb_init(&sb);
+        sb_init(sb);
 
         while (isalnum(lc->current_char) || lc->current_char == '_') {
 
-            sb_append(&sb, lc->current_char);
+            sb_append(sb, lc->current_char);
 
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
@@ -67,8 +66,8 @@ bool lex_get_next_token(LexerContext* lc)
             token.attribute.keyword = KEYWORD_DEFINE;
         } else if (!strcmp(token.value.as_string, "external")) {
             token.type = TOKEN_KEYWORD;
-            token.attribute.keyword = KEYWORD_EXTRN;
-        } else if (!strcmp(token.value.as_string, "EQUAL")) {
+            token.attribute.keyword = KEYWORD_EXTERNAL;
+        } else if (!strcmp(token.value.as_string, "equal")) {
             token.type = TOKEN_KEYWORD;
             token.attribute.keyword = KEYWORD_EQUAL;
         } else if (!strcmp(token.value.as_string, "which")) {
@@ -98,6 +97,9 @@ bool lex_get_next_token(LexerContext* lc)
         } else if (!strcmp(token.value.as_string, "as")) {
             token.type = TOKEN_KEYWORD;
             token.attribute.keyword = KEYWORD_AS;
+        } else if (!strcmp(token.value.as_string, "a")) {
+            token.type = TOKEN_KEYWORD;
+            token.attribute.keyword = KEYWORD_A;
         } else if (!strcmp(token.value.as_string, "int8")) {
             token.type = TOKEN_TYPE;
             token.attribute.data_type = TYPE_INT8;
@@ -131,6 +133,9 @@ bool lex_get_next_token(LexerContext* lc)
         } else if (!strcmp(token.value.as_string, "string")) {
             token.type = TOKEN_TYPE;
             token.attribute.data_type = TYPE_STRING;
+        } else if (!strcmp(token.value.as_string, "...")){
+            token.type = TOKEN_SPECIAL;
+            token.attribute.special = SPECIAL_ELLIPSIS;
         }
 
         lc->token = token;
@@ -138,14 +143,13 @@ bool lex_get_next_token(LexerContext* lc)
     }
 
     if (isdigit(lc->current_char) || lc->current_char == '.') {
-        StringBuilder sb;
-        sb_init(&sb);
+        sb_init(sb);
 
         bool is_decimal = false;
         while (isdigit(lc->current_char) || lc->current_char == '.') {
             is_decimal = is_decimal || lc->current_char == '.';
 
-            sb_append(&sb, lc->current_char);
+            sb_append(sb, lc->current_char);
 
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
@@ -207,7 +211,7 @@ bool lex_get_next_token(LexerContext* lc)
     return false;
 }
 
-bool lex_get_and_expect_token_with_attribute(LexerContext* lc, TokenType token_type,
+bool lex_expect_next_token_with_attribute(LexerContext* lc, TokenType token_type,
     int token_attribute)
 {
     lex_get_next_token(lc);
@@ -231,11 +235,12 @@ bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type,
     case TOKEN_EOF:
     case TOKEN_IDENTIFIER:
     case TOKEN_LITERAL:
+        break;
     }
     return false;
 }
 
-bool lex_get_and_expect_token(LexerContext* lc, TokenType token_type)
+bool lex_expect_next_token(LexerContext* lc, TokenType token_type)
 {
     lex_get_next_token(lc);
     return lex_expect_token(lc, token_type);
