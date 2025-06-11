@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include "utils.h"
 #include <ctype.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,7 +47,7 @@ bool lex_get_next_token(LexerContext* lc)
     if (isalpha(lc->current_char)) {
         sb_init(sb);
 
-        while (isalnum(lc->current_char) || lc->current_char == '_') {
+        while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*') {
 
             sb_append(sb, lc->current_char);
 
@@ -130,10 +131,16 @@ bool lex_get_next_token(LexerContext* lc)
         } else if (!strcmp(token.value.as_string, "double")) {
             token.type = TOKEN_TYPE;
             token.attribute.data_type = TYPE_DOUBLE;
+        } else if (!strcmp(token.value.as_string, "char")) {
+            token.type = TOKEN_TYPE;
+            token.attribute.data_type = TYPE_CHAR;
         } else if (!strcmp(token.value.as_string, "string")) {
             token.type = TOKEN_TYPE;
             token.attribute.data_type = TYPE_STRING;
-        } else if (!strcmp(token.value.as_string, "...")){
+        } else if (!strcmp(token.value.as_string, "constant")) {
+            token.type = TOKEN_TM;
+            token.attribute.type_modifier = TM_CONSTANT;
+        } else if (!strcmp(token.value.as_string, "...")) {
             token.type = TOKEN_SPECIAL;
             token.attribute.special = SPECIAL_ELLIPSIS;
         }
@@ -196,6 +203,9 @@ bool lex_get_next_token(LexerContext* lc)
     } else if (!strcmp(&lc->current_char, ")")) {
         token.type = TOKEN_SPECIAL;
         token.attribute.special = SPECIAL_RPAREN;
+    } else if (!strcmp(&lc->current_char, "*")) {
+        token.type = TOKEN_SPECIAL;
+        token.attribute.special = SPECIAL_STAR;
     }
 
     if (token.type == TOKEN_SPECIAL) {
@@ -226,15 +236,16 @@ bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type,
 
     switch (lc->token.type) {
     case TOKEN_KEYWORD:
-        return ((int)lc->token.attribute.keyword == token_attribute);
+        return (lc->token.attribute.keyword == (KeywordType)token_attribute);
     case TOKEN_SPECIAL:
-        return ((int)lc->token.attribute.special == token_attribute);
+        return (lc->token.attribute.special == (SpecialType)token_attribute);
     case TOKEN_TYPE:
-        return ((int)lc->token.attribute.data_type == token_attribute);
+        return (lc->token.attribute.data_type == (Type)token_attribute);
     case TOKEN_ILLEGAL:
     case TOKEN_EOF:
     case TOKEN_IDENTIFIER:
     case TOKEN_LITERAL:
+    case TOKEN_TM:
         break;
     }
     return false;

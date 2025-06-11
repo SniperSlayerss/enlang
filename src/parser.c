@@ -6,8 +6,40 @@
 Expr* parse_main(LexerContext* lc);
 Expr* parse_expression(LexerContext* lc);
 
-Expr* parse_func_call(LexerContext* lc)
+Expr* parse_type(LexerContext* lc)
 {
+    ASTType* type = malloc(sizeof *type);
+    type->is_constant = false;
+    type->pointer_depth = 0;
+
+    while (lex_expect_token(lc, TOKEN_TM) || lex_expect_token(lc, TOKEN_SPECIAL)) {
+        if (lc->token.type == TOKEN_TM) {
+            switch (lc->token.attribute.type_modifier) {
+            case TM_CONSTANT:
+                type->is_constant = true;
+            }
+        } else {
+            if (lc->token.attribute.special == SPECIAL_STAR) {
+                type->pointer_depth++;
+            }
+        }
+
+        lex_get_next_token(lc);
+    }
+
+    lex_expect(lc, "Expected data type", TOKEN_TYPE);
+    type->data_type = lc->token.attribute.data_type;
+
+    Expr* type_expr = malloc(sizeof *type_expr);
+    type_expr->type = EXPR_TYPE;
+    type_expr->data.type = type;
+
+    return type_expr;
+}
+
+Expr* parse_external(LexerContext* lc)
+{
+    // TODO: Accecpt functional call as well
     lex_expect_next(lc, "Expected identifier", TOKEN_IDENTIFIER); // Eat 'external'
 
     char* callee = lc->token.value.as_string;
@@ -34,11 +66,12 @@ Expr* parse_func_call(LexerContext* lc)
             is_variadic = true;
         } else if (lex_expect_token(lc, TOKEN_IDENTIFIER)) {
             char* arg_iden = lc->token.value.as_string;
-            lex_expect_next(lc, "Expected keyword 'as'", TOKEN_KEYWORD, KEYWORD_AS);
-            lex_expect_next(lc, "Expected keyword 'a'", TOKEN_KEYWORD, KEYWORD_A);
-            NOB_TODO("TYPES");
-        } else {
-            LOG_ERR("Expected argument identifier or '...'");
+            lex_expect_next(lc, "Expected keyword 'as'", TOKEN_KEYWORD, KEYWORD_AS); // Eat identifier'
+            lex_expect_next(lc, "Expected keyword 'a'", TOKEN_KEYWORD, KEYWORD_A); // Eat 'as'
+            lex_get_next_token(lc); // Eat 'a'
+
+            // should get to , or .
+            Expr* type = parse_type(lc);
         }
     }
 }
@@ -69,7 +102,12 @@ Expr* parse_var_assign(LexerContext* lc)
         return NULL;
     }
 
-    var_assign->type = TYPE_INT16;
+    ASTType* type = malloc(sizeof *type);
+    type->data_type = TYPE_INT16;
+    type->pointer_depth = 0;
+    type->is_constant = false;
+
+    var_assign->type = type;
     var_assign->iden = identifier;
     var_assign->assign_expr = assign_expr;
 
@@ -117,7 +155,7 @@ Expr* parse_keyword(LexerContext* lc)
         parse_var_assign(lc);
         break;
     case KEYWORD_EXTERNAL:
-        parse_func_call(lc);
+        parse_external(lc);
         break;
     case KEYWORD_RETURN:
         NOB_TODO("KEYWORD_RETURN");

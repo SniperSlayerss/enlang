@@ -14,11 +14,18 @@ typedef enum {
     EXPR_VAR_ASSIGN,
     EXPR_EXTERNAL,
     EXPR_LITERAL,
+    EXPR_TYPE,
 } ExprType;
 
 typedef struct {
+    Type data_type;
+    bool is_constant;
+    int pointer_depth;
+} ASTType;
+
+typedef struct {
     char* iden;
-    Type type;
+    ASTType* type;
     Expr* assign_expr;
 } ASTVarAssign;
 
@@ -57,6 +64,7 @@ struct Expr {
         ASTExtrnDef* extrn_def;
         ASTVarAssign* var_assign;
         ASTLiteral* literal;
+        ASTType* type;
     } data;
 };
 
