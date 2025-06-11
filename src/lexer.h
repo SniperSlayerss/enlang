@@ -12,6 +12,7 @@ typedef enum {
     TOKEN_SPECIAL,
     TOKEN_TYPE,
     TOKEN_LITERAL,
+    TOKEN_TM,
 } TokenType;
 
 typedef enum {
@@ -25,8 +26,13 @@ typedef enum {
     TYPE_UINT64,
     TYPE_FLOAT,
     TYPE_DOUBLE,
+    TYPE_CHAR,
     TYPE_STRING,
 } Type;
+
+typedef enum {
+    TM_CONSTANT
+} TypeModifier;
 
 typedef enum {
     OP_PLUS,
@@ -60,12 +66,14 @@ typedef enum {
     SPECIAL_LPAREN,
     SPECIAL_RPAREN,
     SPECIAL_ELLIPSIS,
+    SPECIAL_STAR,
 } SpecialType;
 
 typedef union {
     Type data_type;
     SpecialType special;
     KeywordType keyword;
+    TypeModifier type_modifier;
 } TokenAttribute;
 
 typedef union {
@@ -100,17 +108,39 @@ bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type, int
 bool lex_expect_next_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
 
 #define lex_expect_next(...) lex_expect_next_impl(__VA_ARGS__, NULL)
-#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)           \
-    if (attribute) {                                                      \
-        if (!lex_expect_next_token_with_attribute(lc, type, attribute)) { \
-            LOG_ERR(err_msg);                                             \
-            return NULL;                                                  \
-        }                                                                 \
-    } else {                                                              \
-        if (!lex_expect_next_token(lc, type)) {                           \
-            LOG_ERR(err_msg);                                             \
-            return NULL;                                                  \
-        }                                                                 \
+// TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
+// MAYBE ON RETURING NULL??
+#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)                          \
+    if (attribute) {                                                                     \
+        if (!lex_expect_next_token_with_attribute(lc, type, (int)(intptr_t)attribute)) { \
+            LOG_ERR(err_msg);                                                            \
+            exit(1);                                                                     \
+            return NULL;                                                                 \
+        }                                                                                \
+    } else {                                                                             \
+        if (!lex_expect_next_token(lc, type)) {                                          \
+            LOG_ERR(err_msg);                                                            \
+            exit(1);                                                                     \
+            return NULL;                                                                 \
+        }                                                                                \
+    }
+
+#define lex_expect(...) lex_expect_impl(__VA_ARGS__, NULL)
+// TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
+// MAYBE ON RETURING NULL??
+#define lex_expect_impl(lc, err_msg, type, attribute, ...)                          \
+    if (attribute) {                                                                \
+        if (!lex_expect_token_with_attribute(lc, type, (int)(intptr_t)attribute)) { \
+            LOG_ERR(err_msg);                                                       \
+            exit(1);                                                                \
+            return NULL;                                                            \
+        }                                                                           \
+    } else {                                                                        \
+        if (!lex_expect_token(lc, type)) {                                          \
+            LOG_ERR(err_msg);                                                       \
+            exit(1);                                                                \
+            return NULL;                                                            \
+        }                                                                           \
     }
 
 #endif
