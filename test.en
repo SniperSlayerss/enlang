@@ -1,4 +1,4 @@
-let x equal 5.
+let x equal 5 as float.
 
 external printf.
 

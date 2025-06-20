@@ -148,52 +148,47 @@ bool lex_get_next_token(LexerContext* lc)
         return true;
     }
 
-    // FIX HERE
+    // 5 : int16.
+    // 5.01 : float.
+    sb_init(sb);
     if (isdigit(lc->current_char) || lc->current_char == '.') {
-        sb_init(sb);
+        bool has_decimal = false;
+        while (isdigit(lc->current_char) || lc->current_char == '.') {
+            if (lc->current_char == '.' && has_decimal)
+                break;
 
-        if (lc->current_char == '.') {
-            get_next_char(lc);
-            bool is_decimal = true;
-            while (isdigit(lc->current_char) && lc->current_char != '.') {
-                sb_append(sb, lc->current_char);
+            has_decimal = lc->current_char == '.';
 
-                if (!get_next_char(lc)) {
-                    token.type = TOKEN_EOF;
-                    lc->token = token;
-                    return false;
-                }
-            }
-        } else {
-            while (isdigit(lc->current_char) && lc->current_char != '.') {
-                sb_append(sb, lc->current_char);
-
-                if (!get_next_char(lc)) {
-                    token.type = TOKEN_EOF;
-                    lc->token = token;
-                    return false;
-                }
-            }
-            token.type = TOKEN_LITERAL;
-            // TODO: accept different literal types
-            token.attribute.data_type = TYPE_DOUBLE;
-            char* end;
-            token.value.as_double = strtod(sb.msg, &end);
-            lc->token = token;
-            return true;
-        }
-    }
-    // TO HERE
-
-    if (lc->current_char == '/') {
-        do {
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
                 lc->token = token;
                 return false;
             }
-        } while (lc->current_char != '\n' && lc->current_char != '\r');
-        return lex_get_next_token(lc);
+        }
+    } else {
+        while (isdigit(lc->current_char) && lc->current_char != '.') {
+            sb_append(sb, lc->current_char);
+
+            token.type = TOKEN_LITERAL;
+            // TODO: accept different literal types
+            token.attribute.data_type = TYPE_INT16;
+            char* end;
+            token.value.as_int16 = (int16_t)strtol(sb.msg, &end, 10);
+            lc->token = token;
+            return true;
+        }
+        // TO HERE
+
+        if (lc->current_char == '/') {
+            do {
+                if (!get_next_char(lc)) {
+                    token.type = TOKEN_EOF;
+                    lc->token = token;
+                    return false;
+                }
+            } while (lc->current_char != '\n' && lc->current_char != '\r');
+            return lex_get_next_token(lc);
+        }
     }
 
     if (!strcmp(&lc->current_char, ".")) {
