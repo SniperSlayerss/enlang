@@ -80,7 +80,7 @@ typedef union {
     char as_char;
     char* as_string;
     int as_int;
-    double as_double;
+    int16_t as_int16;
     float as_float;
 } TokenValue;
 

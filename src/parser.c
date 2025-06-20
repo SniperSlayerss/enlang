@@ -94,15 +94,14 @@ Expr* parse_var_assign(LexerContext* lc)
 
     lex_expect_next(lc, "Expected keyword 'equal'", TOKEN_KEYWORD, KEYWORD_EQUAL); // Eat identifier
 
-    // TODO: IN FUTURE, ACCEPT DECLARTIONS OF ANY TYPE in lexer.h Type
-    if (lex_expect_attribute_t(lc, TOKEN_KEYWORD, KEYWORD_AS)) {
-        NOB_TODO("Types not implemented yet");
-    }
-
     lex_expect_next(lc, "Expected literal", TOKEN_LITERAL); // Eat 'equal'
 
     // Assume a type of 16-bit signed integer as default
     Expr* assign_expr = parse_expression(lc);
+
+    lex_expect_next(lc, "Expected 'as'", TOKEN_KEYWORD, KEYWORD_AS);
+
+    lex_expect_next(lc, "Expected type", TOKEN_TYPE);
 
     lex_expect_next(lc, "Expected '.'", TOKEN_SPECIAL, SPECIAL_PERIOD); // Eat literal
     printf("%d", lc->token.attribute);
@@ -141,7 +140,7 @@ Expr* parse_literal(LexerContext* lc)
         return NULL;
     }
 
-    literal->value = lc->token.value.as_double;
+    literal->value = lc->token.value.as_int16;
 
     Expr* literal_expr = malloc(sizeof *literal_expr);
     if (literal_expr == NULL) {
