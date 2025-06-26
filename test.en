@@ -1,7 +1,7 @@
 let x equal 5.
 
-external printf which returns type int16 with arguments: format as a constant char*, ... .
+external printf.
 
 run main:
-    printf("X: %d", x)
+    printf(5).
 

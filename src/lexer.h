@@ -43,17 +43,17 @@ typedef enum {
 } BinaryOp;
 
 typedef enum {
-    KEYWORD_DEFINE,
-    KEYWORD_EXTERNAL,
-    KEYWORD_WHICH,
-    KEYWORD_RETURN,
-    KEYWORD_TYPE,
-    KEYWORD_WITH,
     KEYWORD_ARGUMENT,
     KEYWORD_FUNCTION,
+    KEYWORD_EXTERNAL,
+    KEYWORD_DEFINE,
+    KEYWORD_RETURN,
+    KEYWORD_WHICH,
+    KEYWORD_EQUAL,
+    KEYWORD_TYPE,
+    KEYWORD_WITH,
     KEYWORD_LET,
     KEYWORD_AND,
-    KEYWORD_EQUAL,
     KEYWORD_AS,
     KEYWORD_A,
 } KeywordType;
@@ -101,46 +101,46 @@ void lex_context_destroy(LexerContext* lexer_context);
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
 
-bool lex_expect_token(LexerContext* lc, TokenType token_type);
-bool lex_expect_next_token(LexerContext* lc, TokenType token_type);
+bool lex_expect_t(LexerContext* lc, TokenType token_type);
+bool lex_expect_next_t(LexerContext* lc, TokenType token_type);
 
-bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
-bool lex_expect_next_token_with_attribute(LexerContext* lc, TokenType token_type, int token_attribute);
+bool lex_expect_attribute_t(LexerContext* lc, TokenType token_type, int token_attribute);
+bool lex_expect_attribute_next_t(LexerContext* lc, TokenType token_type, int token_attribute);
 
 #define lex_expect_next(...) lex_expect_next_impl(__VA_ARGS__, NULL)
 // TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
 // MAYBE ON RETURING NULL??
-#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)                          \
-    if (attribute) {                                                                     \
-        if (!lex_expect_next_token_with_attribute(lc, type, (int)(intptr_t)attribute)) { \
-            LOG_ERR(err_msg);                                                            \
-            exit(1);                                                                     \
-            return NULL;                                                                 \
-        }                                                                                \
-    } else {                                                                             \
-        if (!lex_expect_next_token(lc, type)) {                                          \
-            LOG_ERR(err_msg);                                                            \
-            exit(1);                                                                     \
-            return NULL;                                                                 \
-        }                                                                                \
+#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)                 \
+    if (attribute) {                                                            \
+        if (!lex_expect_attribute_next_t(lc, type, (int)(intptr_t)attribute)) { \
+            LOG_ERR(err_msg);                                                   \
+            exit(1);                                                            \
+            return NULL;                                                        \
+        }                                                                       \
+    } else {                                                                    \
+        if (!lex_expect_next_t(lc, type)) {                                     \
+            LOG_ERR(err_msg);                                                   \
+            exit(1);                                                            \
+            return NULL;                                                        \
+        }                                                                       \
     }
 
 #define lex_expect(...) lex_expect_impl(__VA_ARGS__, NULL)
 // TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
 // MAYBE ON RETURING NULL??
-#define lex_expect_impl(lc, err_msg, type, attribute, ...)                          \
-    if (attribute) {                                                                \
-        if (!lex_expect_token_with_attribute(lc, type, (int)(intptr_t)attribute)) { \
-            LOG_ERR(err_msg);                                                       \
-            exit(1);                                                                \
-            return NULL;                                                            \
-        }                                                                           \
-    } else {                                                                        \
-        if (!lex_expect_token(lc, type)) {                                          \
-            LOG_ERR(err_msg);                                                       \
-            exit(1);                                                                \
-            return NULL;                                                            \
-        }                                                                           \
+#define lex_expect_impl(lc, err_msg, type, attribute, ...)                 \
+    if (attribute) {                                                       \
+        if (!lex_expect_attribute_t(lc, type, (int)(intptr_t)attribute)) { \
+            LOG_ERR(err_msg);                                              \
+            exit(1);                                                       \
+            return NULL;                                                   \
+        }                                                                  \
+    } else {                                                               \
+        if (!lex_expect_t(lc, type)) {                                     \
+            LOG_ERR(err_msg);                                              \
+            exit(1);                                                       \
+            return NULL;                                                   \
+        }                                                                  \
     }
 
 #endif
