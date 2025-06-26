@@ -20,6 +20,7 @@ typedef enum {
 typedef struct {
     Type data_type;
     bool is_constant;
+    bool is_variadic;
     int pointer_depth;
 } ASTType;
 
@@ -31,7 +32,7 @@ typedef struct {
 
 typedef struct {
     char* iden;
-    Expr* params;
+    /* Expr* params; */
 } ASTExtrnDef;
 
 typedef struct {
@@ -41,7 +42,7 @@ typedef struct {
 
 typedef struct {
     char* arg;
-    Type type;
+    ASTType* type;
 } ASTArgument;
 
 typedef struct {
@@ -65,6 +66,7 @@ struct Expr {
         ASTVarAssign* var_assign;
         ASTLiteral* literal;
         ASTType* type;
+        ASTArgument* arg;
     } data;
 };
 

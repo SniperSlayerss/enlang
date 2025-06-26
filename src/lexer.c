@@ -25,12 +25,14 @@ bool get_next_char(LexerContext* lc)
         return false;
     }
     lc->current_char = c;
+    printf("%c\n", c);
     return true;
 }
 
 bool lex_get_next_token(LexerContext* lc)
 {
     Token token;
+    printf("YOOO");
 
     if (!lc->current_char) {
         get_next_char(lc);
@@ -47,7 +49,7 @@ bool lex_get_next_token(LexerContext* lc)
     if (isalpha(lc->current_char)) {
         sb_init(sb);
 
-        while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*') {
+        while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*' && lc->current_char != '.') {
 
             sb_append(sb, lc->current_char);
 
@@ -140,39 +142,48 @@ bool lex_get_next_token(LexerContext* lc)
         } else if (!strcmp(token.value.as_string, "constant")) {
             token.type = TOKEN_TM;
             token.attribute.type_modifier = TM_CONSTANT;
-        } else if (!strcmp(token.value.as_string, "...")) {
-            token.type = TOKEN_SPECIAL;
-            token.attribute.special = SPECIAL_ELLIPSIS;
         }
 
         lc->token = token;
         return true;
     }
 
+    // FIX HERE
     if (isdigit(lc->current_char) || lc->current_char == '.') {
         sb_init(sb);
 
-        bool is_decimal = false;
-        while (isdigit(lc->current_char) || lc->current_char == '.') {
-            is_decimal = is_decimal || lc->current_char == '.';
+        if (lc->current_char == '.') {
+            get_next_char(lc);
+            bool is_decimal = true;
+            while (isdigit(lc->current_char) && lc->current_char != '.') {
+                sb_append(sb, lc->current_char);
 
-            sb_append(sb, lc->current_char);
-
-            if (!get_next_char(lc)) {
-                token.type = TOKEN_EOF;
-                lc->token = token;
-                return false;
+                if (!get_next_char(lc)) {
+                    token.type = TOKEN_EOF;
+                    lc->token = token;
+                    return false;
+                }
             }
-        }
+        } else {
+            while (isdigit(lc->current_char) && lc->current_char != '.') {
+                sb_append(sb, lc->current_char);
 
-        token.type = TOKEN_LITERAL;
-        // TODO: accept different literal types
-        token.attribute.data_type = TYPE_DOUBLE;
-        char* end;
-        token.value.as_double = strtod(sb.msg, &end);
-        lc->token = token;
-        return true;
+                if (!get_next_char(lc)) {
+                    token.type = TOKEN_EOF;
+                    lc->token = token;
+                    return false;
+                }
+            }
+            token.type = TOKEN_LITERAL;
+            // TODO: accept different literal types
+            token.attribute.data_type = TYPE_DOUBLE;
+            char* end;
+            token.value.as_double = strtod(sb.msg, &end);
+            lc->token = token;
+            return true;
+        }
     }
+    // TO HERE
 
     if (lc->current_char == '/') {
         do {
@@ -221,14 +232,14 @@ bool lex_get_next_token(LexerContext* lc)
     return false;
 }
 
-bool lex_expect_next_token_with_attribute(LexerContext* lc, TokenType token_type,
+bool lex_expect_attribute_next_t(LexerContext* lc, TokenType token_type,
     int token_attribute)
 {
     lex_get_next_token(lc);
-    return lex_expect_token_with_attribute(lc, token_type, token_attribute);
+    return lex_expect_attribute_t(lc, token_type, token_attribute);
 }
 
-bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type,
+bool lex_expect_attribute_t(LexerContext* lc, TokenType token_type,
     int token_attribute)
 {
     if (lc->token.type != token_type)
@@ -251,13 +262,13 @@ bool lex_expect_token_with_attribute(LexerContext* lc, TokenType token_type,
     return false;
 }
 
-bool lex_expect_next_token(LexerContext* lc, TokenType token_type)
+bool lex_expect_next_t(LexerContext* lc, TokenType token_type)
 {
     lex_get_next_token(lc);
-    return lex_expect_token(lc, token_type);
+    return lex_expect_t(lc, token_type);
 }
 
-bool lex_expect_token(LexerContext* lc, TokenType token_type)
+bool lex_expect_t(LexerContext* lc, TokenType token_type)
 {
     return !(lc->token.type != token_type);
 }

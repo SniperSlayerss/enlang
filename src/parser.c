@@ -8,72 +8,82 @@ Expr* parse_expression(LexerContext* lc);
 
 Expr* parse_type(LexerContext* lc)
 {
+    ASTArgument* arg = malloc(sizeof *arg);
+
+    if (lex_expect_attribute_t(lc, TOKEN_SPECIAL, SPECIAL_ELLIPSIS)) {
+        ASTType* type = malloc(sizeof *type);
+        type->is_constant = false;
+        type->is_variadic = true;
+        type->pointer_depth = 0;
+
+        arg->type = type;
+
+        Expr* arg_expr = malloc(sizeof *arg_expr);
+        arg_expr->type = EXPR_TYPE;
+        arg_expr->data.arg = arg;
+
+        lex_expect_next(lc, "Expected keyword '.' (... must be last arg)", TOKEN_SPECIAL, SPECIAL_PERIOD); // Eat '...'
+        return arg_expr;
+    }
+
+    arg->arg = lc->token.value.as_string;
+
+    lex_expect_next(lc, "Expected keyword 'as'", TOKEN_KEYWORD, KEYWORD_AS); // Eat identifier'
+    lex_expect_next(lc, "Expected keyword 'a'", TOKEN_KEYWORD, KEYWORD_A); // Eat 'as'
+
     ASTType* type = malloc(sizeof *type);
     type->is_constant = false;
+    type->is_variadic = false;
     type->pointer_depth = 0;
 
-    while (lex_expect_token(lc, TOKEN_TM) || lex_expect_token(lc, TOKEN_SPECIAL)) {
-        if (lc->token.type == TOKEN_TM) {
+    lex_get_next_token(lc); // Eat 'a'
+    while (lex_expect_t(lc, TOKEN_TM) || lex_expect_attribute_t(lc, TOKEN_SPECIAL, SPECIAL_STAR) || lex_expect_t(lc, TOKEN_TYPE)) {
+        if (lc->token.type == TOKEN_TYPE) {
+            type->data_type = lc->token.attribute.data_type;
+        } else if (lc->token.type == TOKEN_TM) {
             switch (lc->token.attribute.type_modifier) {
             case TM_CONSTANT:
                 type->is_constant = true;
             }
-        } else {
-            if (lc->token.attribute.special == SPECIAL_STAR) {
-                type->pointer_depth++;
-            }
+        } else if (lc->token.attribute.special == SPECIAL_STAR) {
+            type->pointer_depth++;
         }
 
         lex_get_next_token(lc);
     }
 
-    lex_expect(lc, "Expected data type", TOKEN_TYPE);
-    type->data_type = lc->token.attribute.data_type;
+    if (!type->data_type && type->is_variadic == false) {
+        LOG_ERR("Expected data type to be associated with %s", arg->arg);
+        exit(1);
+    }
 
-    Expr* type_expr = malloc(sizeof *type_expr);
-    type_expr->type = EXPR_TYPE;
-    type_expr->data.type = type;
+    arg->type = type;
 
-    return type_expr;
+    Expr* arg_expr = malloc(sizeof *arg_expr);
+    arg_expr->type = EXPR_TYPE;
+    arg_expr->data.arg = arg;
+
+    return arg_expr;
 }
 
 Expr* parse_external(LexerContext* lc)
 {
-    // TODO: Accecpt functional call as well
+
+    // TODO: Accept functional call as well
     lex_expect_next(lc, "Expected identifier", TOKEN_IDENTIFIER); // Eat 'external'
 
     char* callee = lc->token.value.as_string;
 
-    lex_expect_next(lc, "Expected keyword 'which'", TOKEN_KEYWORD, KEYWORD_WHICH); // Eat identifier
-    lex_expect_next(lc, "Expected keyword 'returns'", TOKEN_KEYWORD, KEYWORD_RETURN); // Eat 'which'
-    lex_expect_next(lc, "Expected keyword 'type'", TOKEN_KEYWORD, KEYWORD_TYPE); // Eat 'returns'
-    lex_expect_next(lc, "Expected data type", TOKEN_TYPE); // Eat 'type'
+    lex_expect_next(lc, "Expected '.' after external definition", TOKEN_SPECIAL, SPECIAL_PERIOD); // Eat identifier
 
-    Type type = lc->token.attribute.data_type;
+    ASTExtrnDef* extrn_def = malloc(sizeof *extrn_def);
+    extrn_def->iden = callee;
 
-    lex_expect_next(lc, "Expected keyword 'with'", TOKEN_KEYWORD, KEYWORD_WITH); // Eat identifier
-    lex_expect_next(lc, "Expected keyword 'arguments'", TOKEN_KEYWORD, KEYWORD_ARGUMENT); // Eat 'with'
-    lex_expect_next(lc, "Expected ':'", TOKEN_SPECIAL, SPECIAL_COLON); // Eat 'arguments'
+    Expr* extrn_expr = malloc(sizeof *extrn_expr);
+    extrn_expr->type = EXPR_EXTERNAL;
+    extrn_expr->data.extrn_def = extrn_def;
 
-    // Loop over args, until : is reached
-    da_init(ASTArgument, args);
-    bool is_variadic = false;
-    while (!lex_expect_token_with_attribute(lc, TOKEN_SPECIAL, SPECIAL_PERIOD)) {
-        lex_get_next_token(lc);
-
-        if (lex_expect_token_with_attribute(lc, TOKEN_SPECIAL, SPECIAL_ELLIPSIS)) {
-            lex_expect_next(lc, "... must be at the end of the argument list", TOKEN_SPECIAL, SPECIAL_PERIOD);
-            is_variadic = true;
-        } else if (lex_expect_token(lc, TOKEN_IDENTIFIER)) {
-            char* arg_iden = lc->token.value.as_string;
-            lex_expect_next(lc, "Expected keyword 'as'", TOKEN_KEYWORD, KEYWORD_AS); // Eat identifier'
-            lex_expect_next(lc, "Expected keyword 'a'", TOKEN_KEYWORD, KEYWORD_A); // Eat 'as'
-            lex_get_next_token(lc); // Eat 'a'
-
-            // should get to , or .
-            Expr* type = parse_type(lc);
-        }
-    }
+    return extrn_expr;
 }
 
 Expr* parse_var_assign(LexerContext* lc)
@@ -85,7 +95,7 @@ Expr* parse_var_assign(LexerContext* lc)
     lex_expect_next(lc, "Expected keyword 'equal'", TOKEN_KEYWORD, KEYWORD_EQUAL); // Eat identifier
 
     // TODO: IN FUTURE, ACCEPT DECLARTIONS OF ANY TYPE in lexer.h Type
-    if (lex_expect_token_with_attribute(lc, TOKEN_KEYWORD, KEYWORD_AS)) {
+    if (lex_expect_attribute_t(lc, TOKEN_KEYWORD, KEYWORD_AS)) {
         NOB_TODO("Types not implemented yet");
     }
 
@@ -95,6 +105,7 @@ Expr* parse_var_assign(LexerContext* lc)
     Expr* assign_expr = parse_expression(lc);
 
     lex_expect_next(lc, "Expected '.'", TOKEN_SPECIAL, SPECIAL_PERIOD); // Eat literal
+    printf("%d", lc->token.attribute);
 
     ASTVarAssign* var_assign = malloc(sizeof *var_assign);
     if (var_assign == NULL) {
@@ -160,9 +171,11 @@ Expr* parse_keyword(LexerContext* lc)
     case KEYWORD_RETURN:
         NOB_TODO("KEYWORD_RETURN");
         break;
+    case KEYWORD_WITH:
+        NOB_TODO("KEYWORD_WITH");
+        break;
     case KEYWORD_WHICH:
     case KEYWORD_TYPE:
-    case KEYWORD_WITH:
     case KEYWORD_ARGUMENT:
     case KEYWORD_FUNCTION:
     case KEYWORD_AND:
@@ -175,7 +188,7 @@ Expr* parse_keyword(LexerContext* lc)
 Expr* parse_expression(LexerContext* lc)
 {
     Expr* expr;
-    while (lex_get_next_token(lc) && !lex_expect_token_with_attribute(lc, TOKEN_SPECIAL, SPECIAL_PERIOD)) {
+    while (!lex_expect_attribute_t(lc, TOKEN_SPECIAL, SPECIAL_PERIOD)) {
         switch (lc->token.type) {
         case TOKEN_ILLEGAL:
             NOB_TODO("ILLEGAL");
@@ -207,6 +220,7 @@ Expr* parse_main(LexerContext* lc)
     Expr* expr;
     switch (lc->token.type) {
     case TOKEN_ILLEGAL:
+        printf("%c\n", lc->current_char);
         NOB_TODO("ILLEGAL");
         break;
     case TOKEN_EOF:
@@ -241,7 +255,8 @@ int main()
     }
 
     Expr** ast;
-    while (lex_get_next_token(&lc)) {
+    lex_get_next_token(&lc);
+    while (lc.token.type != TOKEN_EOF) {
         parse_main(&lc);
     }
     return 0;
