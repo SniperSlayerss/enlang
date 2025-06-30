@@ -18,7 +18,7 @@ typedef enum {
 } ExprType;
 
 typedef struct {
-    Type data_type;
+    DataType data_type;
     bool is_constant;
     bool is_variadic;
     int pointer_depth;
@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
     char* callee;
     ASTArgument** args;
-    Type return_type;
+    DataType return_type;
     bool is_variadic;
 } ASTFuncCall;
 
@@ -69,5 +69,7 @@ struct Expr {
         ASTArgument* arg;
     } data;
 };
+
+Expr** create_ast(LexerContext* lc);
 
 #endif

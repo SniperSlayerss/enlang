@@ -1,8 +1,8 @@
 CC := gcc
 CFLAGS := -Wall -Wextra -O2
-SRC :=  src/parser.c src/lexer.c
+SRC :=  src/codegen.c src/parser.c src/lexer.c
 OBJ := $(SRC:src/%.c=build/%.o)
-TARGET := parser
+TARGET := enlang 
 
 $(TARGET) :	$(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^

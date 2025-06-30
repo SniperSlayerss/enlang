@@ -7,12 +7,38 @@
 typedef enum {
     TOKEN_ILLEGAL,
     TOKEN_EOF,
-    TOKEN_KEYWORD,
     TOKEN_IDENTIFIER,
-    TOKEN_SPECIAL,
     TOKEN_TYPE,
     TOKEN_LITERAL,
-    TOKEN_TM,
+    // Keywords
+    TOKEN_ARGUMENT,
+    TOKEN_FUNCTION,
+    TOKEN_EXTERNAL,
+    TOKEN_DEFINE,
+    TOKEN_RETURN,
+    TOKEN_WHICH,
+    TOKEN_EQUAL,
+    TOKEN_KTYPE,
+    TOKEN_WITH,
+    TOKEN_LET,
+    TOKEN_AND,
+    TOKEN_AS,
+    TOKEN_A,
+    // Special
+    TOKEN_SEMI_COLON,
+    TOKEN_COLON,
+    TOKEN_PERIOD,
+    TOKEN_COMMA,
+    TOKEN_LPAREN,
+    TOKEN_RPAREN,
+    TOKEN_ELLIPSIS,
+    TOKEN_STAR,
+    // Operations
+    TOKEN_PLUS,
+    TOKEN_SUB,
+    TOKEN_DIV,
+    TOKEN_MULT,
+    TOKEN_EXP,
 } TokenType;
 
 typedef enum {
@@ -28,53 +54,7 @@ typedef enum {
     TYPE_DOUBLE,
     TYPE_CHAR,
     TYPE_STRING,
-} Type;
-
-typedef enum {
-    TM_CONSTANT
-} TypeModifier;
-
-typedef enum {
-    OP_PLUS,
-    OP_SUB,
-    OP_DIV,
-    OP_MULT,
-    OP_EXP,
-} BinaryOp;
-
-typedef enum {
-    KEYWORD_ARGUMENT,
-    KEYWORD_FUNCTION,
-    KEYWORD_EXTERNAL,
-    KEYWORD_DEFINE,
-    KEYWORD_RETURN,
-    KEYWORD_WHICH,
-    KEYWORD_EQUAL,
-    KEYWORD_TYPE,
-    KEYWORD_WITH,
-    KEYWORD_LET,
-    KEYWORD_AND,
-    KEYWORD_AS,
-    KEYWORD_A,
-} KeywordType;
-
-typedef enum {
-    SPECIAL_SEMI_COLON,
-    SPECIAL_COLON,
-    SPECIAL_PERIOD,
-    SPECIAL_COMMA,
-    SPECIAL_LPAREN,
-    SPECIAL_RPAREN,
-    SPECIAL_ELLIPSIS,
-    SPECIAL_STAR,
-} SpecialType;
-
-typedef union {
-    Type data_type;
-    SpecialType special;
-    KeywordType keyword;
-    TypeModifier type_modifier;
-} TokenAttribute;
+} DataType;
 
 typedef union {
     char as_char;
@@ -82,11 +62,11 @@ typedef union {
     int as_int;
     int16_t as_int16;
     float as_float;
+    DataType data_type;
 } TokenValue;
 
 typedef struct {
     TokenType type;
-    TokenAttribute attribute;
     TokenValue value;
 } Token;
 
@@ -96,51 +76,12 @@ typedef struct {
     Token token;
 } LexerContext;
 
-void lex_context_destroy(LexerContext* lexer_context);
+void lex_context_close(LexerContext* lexer_context);
 
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
 
-bool lex_expect_t(LexerContext* lc, TokenType token_type);
-bool lex_expect_next_t(LexerContext* lc, TokenType token_type);
-
-bool lex_expect_attribute_t(LexerContext* lc, TokenType token_type, int token_attribute);
-bool lex_expect_attribute_next_t(LexerContext* lc, TokenType token_type, int token_attribute);
-
-#define lex_expect_next(...) lex_expect_next_impl(__VA_ARGS__, NULL)
-// TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
-// MAYBE ON RETURING NULL??
-#define lex_expect_next_impl(lc, err_msg, type, attribute, ...)                 \
-    if (attribute) {                                                            \
-        if (!lex_expect_attribute_next_t(lc, type, (int)(intptr_t)attribute)) { \
-            LOG_ERR(err_msg);                                                   \
-            exit(1);                                                            \
-            return NULL;                                                        \
-        }                                                                       \
-    } else {                                                                    \
-        if (!lex_expect_next_t(lc, type)) {                                     \
-            LOG_ERR(err_msg);                                                   \
-            exit(1);                                                            \
-            return NULL;                                                        \
-        }                                                                       \
-    }
-
-#define lex_expect(...) lex_expect_impl(__VA_ARGS__, NULL)
-// TODO: HANDLE EXIT AND DEALLOCATE MEMORY PROPERLY
-// MAYBE ON RETURING NULL??
-#define lex_expect_impl(lc, err_msg, type, attribute, ...)                 \
-    if (attribute) {                                                       \
-        if (!lex_expect_attribute_t(lc, type, (int)(intptr_t)attribute)) { \
-            LOG_ERR(err_msg);                                              \
-            exit(1);                                                       \
-            return NULL;                                                   \
-        }                                                                  \
-    } else {                                                               \
-        if (!lex_expect_t(lc, type)) {                                     \
-            LOG_ERR(err_msg);                                              \
-            exit(1);                                                       \
-            return NULL;                                                   \
-        }                                                                  \
-    }
+bool lex_expect(LexerContext* lc, TokenType token_type);
+bool lex_expect_next(LexerContext* lc, TokenType token_type);
 
 #endif

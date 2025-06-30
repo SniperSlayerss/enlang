@@ -3,5 +3,4 @@ let x equal 5 as float.
 external printf.
 
 run main:
-    printf(5).
-
+    printf(x).
