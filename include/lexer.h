@@ -21,6 +21,7 @@ typedef enum {
     TOKEN_KTYPE,
     TOKEN_WITH,
     TOKEN_LET,
+    TOKEN_RUN,
     TOKEN_AND,
     TOKEN_AS,
     TOKEN_A,
@@ -77,11 +78,13 @@ typedef struct {
 } LexerContext;
 
 void lex_context_close(LexerContext* lexer_context);
+void log_token_error(Token token);
 
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
 
 bool lex_expect(LexerContext* lc, TokenType token_type);
 bool lex_expect_next(LexerContext* lc, TokenType token_type);
+
 
 #endif
