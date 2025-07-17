@@ -62,9 +62,10 @@ bool lex_get_next_token(LexerContext* lc)
         token.value.as_string = sb.msg;
 
         token.type = TOKEN_IDENTIFIER;
-        if (!strcmp(token.value.as_string, "define")
-            || !strcmp(token.value.as_string, "run")) {
+        if (!strcmp(token.value.as_string, "define")) {
             token.type = TOKEN_DEFINE;
+        } else if (strcmp(token.value.as_string, "run")) {
+            token.type = TOKEN_RUN;
         } else if (!strcmp(token.value.as_string, "external")) {
             token.type = TOKEN_EXTERNAL;
         } else if (!strcmp(token.value.as_string, "equal")) {
@@ -238,9 +239,10 @@ void log_token_error(Token token)
     case TOKEN_WITH:
     case TOKEN_LET:
     case TOKEN_AND:
+    case TOKEN_RUN:
     case TOKEN_AS:
     case TOKEN_A:
-        LOG_ERR("Expected keyword '%s'", token.value.as_string);
+        LOG_ERR("Expected keyword, got '%s'", token.value.as_string);
         break;
     // Special
     case TOKEN_SEMI_COLON:
@@ -257,7 +259,7 @@ void log_token_error(Token token)
     case TOKEN_DIV:
     case TOKEN_MULT:
     case TOKEN_EXP:
-        LOG_ERR("Expected keyword '%c'", token.value.as_char);
+        LOG_ERR("Expected keyword, got '%c'", token.value.as_char);
         break;
     default:
         LOG_ERR("Unknown token type %d", token.type);
