@@ -25,33 +25,33 @@ typedef struct {
 } ASTType;
 
 typedef struct {
-    char* iden;
+    const char* identifier;
     ASTType* type;
     Expr* assign_expr;
 } ASTVarAssign;
 
 typedef struct {
-    char* iden;
+    const char* identifier;
     /* Expr* params; */
 } ASTExtrnDef;
 
 typedef struct {
-    char* name;
-    char** params;
+    const char* arg;
+    ASTType* type;
+} ASTArgument;
+
+typedef struct {
+    const char* name;
+    ASTArgument** params;
     int param_count;
     Expr** body;
     bool is_entry_point;
 } ASTFuncDef;
 
-typedef struct {
-    char* arg;
-    ASTType* type;
-} ASTArgument;
 
 typedef struct {
-    char* callee;
+    const char* identifier;
     ASTArgument** args;
-    DataType return_type;
 } ASTFuncCall;
 
 // TODO: Allow over literal types

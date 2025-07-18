@@ -1,4 +1,4 @@
-#include "../src/lexer.h"
+#include "lexer.h"
 
 // cc lex_test.c ../src/lexer.c -o lex_test
 void log_token(Token token)

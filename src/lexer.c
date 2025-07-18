@@ -64,7 +64,7 @@ bool lex_get_next_token(LexerContext* lc)
         token.type = TOKEN_IDENTIFIER;
         if (!strcmp(token.value.as_string, "define")) {
             token.type = TOKEN_DEFINE;
-        } else if (strcmp(token.value.as_string, "run")) {
+        } else if (!strcmp(token.value.as_string, "run")) {
             token.type = TOKEN_RUN;
         } else if (!strcmp(token.value.as_string, "external")) {
             token.type = TOKEN_EXTERNAL;
@@ -209,25 +209,15 @@ bool lex_get_next_token(LexerContext* lc)
     return false;
 }
 
-void log_token_error(Token token)
+static inline const char* log_token(Token token)
 {
     switch (token.type) {
-    case TOKEN_ILLEGAL:
-        LOG_ERR("Expected ILLEGAL");
-        break;
-    case TOKEN_EOF:
-        LOG_ERR("Expected EOF");
-        break;
     case TOKEN_IDENTIFIER:
-        LOG_ERR("Expected identifier");
-        break;
+        return token.value.as_string;
     case TOKEN_TYPE:
-        LOG_ERR("Expected data type");
-        break;
+        return "type";
     case TOKEN_LITERAL:
-        LOG_ERR("Expected literal");
-        break;
-    // Keyword
+        return "literal";
     case TOKEN_ARGUMENT:
     case TOKEN_FUNCTION:
     case TOKEN_EXTERNAL:
@@ -242,9 +232,7 @@ void log_token_error(Token token)
     case TOKEN_RUN:
     case TOKEN_AS:
     case TOKEN_A:
-        LOG_ERR("Expected keyword, got '%s'", token.value.as_string);
-        break;
-    // Special
+        return token.value.as_string;
     case TOKEN_SEMI_COLON:
     case TOKEN_COLON:
     case TOKEN_PERIOD:
@@ -253,31 +241,78 @@ void log_token_error(Token token)
     case TOKEN_RPAREN:
     case TOKEN_ELLIPSIS:
     case TOKEN_STAR:
-    // Operation
     case TOKEN_PLUS:
     case TOKEN_SUB:
     case TOKEN_DIV:
     case TOKEN_MULT:
     case TOKEN_EXP:
-        LOG_ERR("Expected keyword, got '%c'", token.value.as_char);
+        static char buf[2];
+        buf[0] = token.value.as_char;
+        buf[1] = '\0';
+        return buf;
+    }
+    return "<unknown>";
+}
+
+static inline void log_token_error_inline(Token token, TokenType expected, const char* file, int line, const char* func)
+{
+    const char* token_str = log_token(token);
+    switch (expected) {
+    case TOKEN_IDENTIFIER:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected identifier got '%s'\n", file, line, func, token_str);
+        break;
+    case TOKEN_TYPE:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected data type got '%s'\n", file, line, func, token_str);
+        break;
+    case TOKEN_LITERAL:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected literal got '%s'\n", file, line, func, token_str);
+        break;
+    case TOKEN_ARGUMENT:
+    case TOKEN_FUNCTION:
+    case TOKEN_EXTERNAL:
+    case TOKEN_DEFINE:
+    case TOKEN_RETURN:
+    case TOKEN_WHICH:
+    case TOKEN_EQUAL:
+    case TOKEN_KTYPE:
+    case TOKEN_WITH:
+    case TOKEN_LET:
+    case TOKEN_AND:
+    case TOKEN_RUN:
+    case TOKEN_AS:
+    case TOKEN_A:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected keyword, got '%s'\n",
+            file, line, func, token_str);
+        break;
+    case TOKEN_SEMI_COLON:
+    case TOKEN_COLON:
+    case TOKEN_PERIOD:
+    case TOKEN_COMMA:
+    case TOKEN_LPAREN:
+    case TOKEN_RPAREN:
+    case TOKEN_ELLIPSIS:
+    case TOKEN_STAR:
+    case TOKEN_PLUS:
+    case TOKEN_SUB:
+    case TOKEN_DIV:
+    case TOKEN_MULT:
+    case TOKEN_EXP:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected symbol, got '%s'\n",
+            file, line, func, token_str);
         break;
     default:
-        LOG_ERR("Unknown token type %d", token.type);
+        fprintf(stderr, "ERROR [%s:%d %s]: Unknown token type '%s'\n",
+            file, line, func, token_str);
         break;
     }
 }
 
-bool lex_expect_next(LexerContext* lc, TokenType token_type)
-{
-    lex_get_next_token(lc);
-    return lex_expect(lc, token_type);
-}
-
-bool lex_expect(LexerContext* lc, TokenType token_type)
+bool lex_expect_with_context(LexerContext* lc, TokenType token_type,
+    const char* file, int line, const char* func)
 {
     if (lc->token.type != token_type) {
-        log_token_error(lc->token);
-	exit(420);
+        log_token_error_inline(lc->token, token_type, file, line, func);
+        exit(420);
         return false;
     }
     return true;
