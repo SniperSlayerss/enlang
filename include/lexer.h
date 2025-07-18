@@ -78,13 +78,16 @@ typedef struct {
 } LexerContext;
 
 void lex_context_close(LexerContext* lexer_context);
-void log_token_error(Token token);
 
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
+bool lex_expect_with_context(LexerContext* lc, TokenType token_type,
+    const char* file, int line, const char* func);
 
-bool lex_expect(LexerContext* lc, TokenType token_type);
-bool lex_expect_next(LexerContext* lc, TokenType token_type);
+#define LEX_EXPECT(lc, type) \
+    lex_expect_with_context((lc), (type), __FILE__, __LINE__, __func__)
 
+#define LEX_EXPECT_NEXT(lc, type) \
+    (lex_get_next_token((lc)), LEX_EXPECT((lc), (type)))
 
 #endif
