@@ -48,7 +48,6 @@ typedef struct {
     bool is_entry_point;
 } ASTFuncDef;
 
-
 typedef struct {
     const char* identifier;
     ASTArgument** args;
@@ -56,7 +55,14 @@ typedef struct {
 
 // TODO: Allow over literal types
 typedef struct {
-    double value;
+    union {
+        char as_char;
+        char* as_string;
+        int as_int;
+        int16_t as_int16;
+        float as_float;
+    } value;
+    DataType data_type;
 } ASTLiteral;
 
 struct Expr {

@@ -5,6 +5,7 @@
 
 Expr* parse_main(LexerContext* lc, bool is_func_body);
 Expr* parse_expression(LexerContext* lc);
+Expr* parse_literal(LexerContext* lc);
 
 // TODO currently not using, implement types...
 Expr* parse_type(LexerContext* lc)
@@ -85,7 +86,20 @@ Expr* parse_func_call(LexerContext* lc)
     lex_get_next_token(lc); // Eat '('
 
     // TODO implement function call ast
+    // Take in parameters, should be similar to defintion loop
+    da_init(Expr*, params);
+    while (lc->token.type != TOKEN_RPAREN) {
+        da_append(params, parse_main(lc, true));
 
+        if (lc->token.type == TOKEN_COMMA) {
+            lex_get_next_token(lc);
+        } else {
+            LEX_EXPECT_NEXT(lc, TOKEN_RPAREN);
+        }
+    }
+    params.data[params.size] = NULL;
+
+    LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
 }
 
 Expr* parse_func_def(LexerContext* lc)
@@ -102,12 +116,14 @@ Expr* parse_func_def(LexerContext* lc)
     lex_get_next_token(lc); // Eat ':'
     while (lc->token.type != TOKEN_PERIOD) {
         da_append(body, parse_main(lc, true));
-        LEX_EXPECT(lc, TOKEN_COMMA);
-        lex_get_next_token(lc);
+
+        if (lc->token.type == TOKEN_COMMA) {
+            lex_get_next_token(lc);
+        } else {
+            LEX_EXPECT(lc, TOKEN_PERIOD);
+        }
     }
     body.data[body.size] = NULL;
-
-    LEX_EXPECT(lc, TOKEN_PERIOD);
 
     ASTFuncDef* func_def = malloc(sizeof *func_def);
     if (func_def == NULL) {
@@ -129,6 +145,37 @@ Expr* parse_func_def(LexerContext* lc)
     func_def_expr->data.func_def = func_def;
 
     return func_def_expr;
+}
+
+Expr* parse_literal(LexerContext* lc)
+{
+    ASTLiteral* literal = malloc(sizeof *literal);
+    if (literal == NULL) {
+        printf("ERROR: Malloc for ASTLiteral* failed");
+        return NULL;
+    }
+
+    switch (lc->token.data_type) {
+    case TYPE_INT16:
+        literal->value.as_int16 = lc->token.value.as_int16;
+        literal->data_type = TYPE_INT16;
+        break;
+    case TYPE_STRING:
+        literal->value.as_string = lc->token.value.as_string;
+        literal->data_type = TYPE_STRING;
+        break;
+    }
+
+    Expr* literal_expr = malloc(sizeof *literal_expr);
+    if (literal_expr == NULL) {
+        printf("ERROR: Malloc for ASTLiteral Expr failed");
+        return NULL;
+    }
+
+    literal_expr->type = EXPR_LITERAL;
+    literal_expr->data.literal = literal;
+
+    return literal_expr;
 }
 
 Expr* parse_var_assign(LexerContext* lc)
@@ -154,6 +201,7 @@ Expr* parse_var_assign(LexerContext* lc)
     ASTVarAssign* var_assign = malloc(sizeof *var_assign);
     if (var_assign == NULL) {
         printf("ERROR: Malloc for ASTVarAssign* failed");
+
         return NULL;
     }
 
@@ -176,28 +224,6 @@ Expr* parse_var_assign(LexerContext* lc)
 
     return var_expr;
 }
-Expr* parse_literal(LexerContext* lc)
-{
-    ASTLiteral* literal = malloc(sizeof *literal);
-    if (literal == NULL) {
-        printf("ERROR: Malloc for ASTLiteral* failed");
-        return NULL;
-    }
-
-    literal->value = lc->token.value.as_int16;
-
-    Expr* literal_expr = malloc(sizeof *literal_expr);
-    if (literal_expr == NULL) {
-        printf("ERROR: Malloc for ASTLiteral Expr failed");
-        return NULL;
-    }
-
-    literal_expr->type = EXPR_LITERAL;
-    literal_expr->data.literal = literal;
-
-    return literal_expr;
-}
-
 Expr* parse_identifier(LexerContext* lc)
 {
     const char* identifier = lc->token.value.as_string;
@@ -205,10 +231,10 @@ Expr* parse_identifier(LexerContext* lc)
     lex_get_next_token(lc); // Eat identifier
 
     // If we get '(' then the identifier is part of a function call
-    if (lc->token.type == TOKEN_LPAREN)
-	return parse_func_call(lc);
+    if (lc->token.type == TOKEN_LPAREN) {
+        Expr* expr = parse_func_call(lc);
+    }
 }
-
 
 // TODO Parse expressions properly
 Expr* parse_expression(LexerContext* lc)
@@ -224,12 +250,6 @@ Expr* parse_expression(LexerContext* lc)
 Expr* parse_main(LexerContext* lc, bool is_func_body)
 {
     Expr* expr;
-    if (lc->token.type == TOKEN_LET)
-        return parse_var_assign(lc);
-
-    if (lc->token.type == TOKEN_IDENTIFIER)
-        return parse_identifier(lc);
-
     if (!is_func_body) {
         if (lc->token.type == TOKEN_EXTERNAL)
             return parse_external(lc);
@@ -237,14 +257,24 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
             return parse_func_def(lc);
     }
 
-    return expr;
+    if (lc->token.type == TOKEN_LET)
+        return parse_var_assign(lc);
+
+    if (lc->token.type == TOKEN_IDENTIFIER)
+        return parse_identifier(lc);
+
+    if (lc->token.type == TOKEN_LITERAL)
+        return parse_literal(lc);
+
     lex_get_next_token(lc);
+    return expr;
 }
 
 Expr** create_ast(LexerContext* lc)
 {
+    lex_get_next_token(lc);
+
     da_init(Expr*, ast);
-    // lex_get_next_token(lc);
     while (lc->token.type != TOKEN_EOF) {
         da_append(ast, parse_main(lc, false));
         lex_get_next_token(lc);

@@ -21,7 +21,7 @@ bool lex_set_current_file(LexerContext* lc, char* file_path)
 bool get_next_char(LexerContext* lc)
 {
     char c = getc(lc->current_file);
-    putchar(c);
+    // putchar(c);
     if (c == EOF) {
         return false;
     }
@@ -43,6 +43,28 @@ bool lex_get_next_token(LexerContext* lc)
             lc->token = token;
             return false;
         }
+    }
+
+    if (lc->current_char == '"')
+    {
+        sb_init(sb);
+        get_next_char(lc);
+        while (lc->current_char != '"') {
+            sb_append(sb, lc->current_char);
+
+            if (!get_next_char(lc)) {
+                token.type = TOKEN_EOF;
+                lc->token = token;
+                return true;
+            }
+        }
+	get_next_char(lc);
+
+	token.type = TOKEN_LITERAL;
+	token.data_type = TYPE_STRING;
+	token.value.as_string = sb.msg;
+	lc->token = token;
+	return true;
     }
 
     if (isalpha(lc->current_char)) {
@@ -157,7 +179,7 @@ bool lex_get_next_token(LexerContext* lc)
         if (is_literal) {
             token.type = TOKEN_LITERAL;
             // TODO: accept different literal types
-            token.value.data_type = TYPE_INT16;
+            token.data_type = TYPE_INT16;
             char* end;
             token.value.as_int16 = (int16_t)strtol(sb.msg, &end, 10);
             lc->token = token;
@@ -179,19 +201,19 @@ bool lex_get_next_token(LexerContext* lc)
         }
     }
 
-    if (!strcmp(&lc->current_char, ".")) {
+    if (lc->current_char == '.') {
         token.type = TOKEN_PERIOD;
-    } else if (!strcmp(&lc->current_char, ",")) {
+    } else if (lc->current_char == ',') {
         token.type = TOKEN_COMMA;
-    } else if (!strcmp(&lc->current_char, ";")) {
+    } else if (lc->current_char == ';') {
         token.type = TOKEN_SEMI_COLON;
-    } else if (!strcmp(&lc->current_char, ":")) {
+    } else if (lc->current_char == ':') {
         token.type = TOKEN_COLON;
-    } else if (!strcmp(&lc->current_char, "(")) {
+    } else if (lc->current_char == '(') {
         token.type = TOKEN_LPAREN;
-    } else if (!strcmp(&lc->current_char, ")")) {
+    } else if (lc->current_char == ')') {
         token.type = TOKEN_RPAREN;
-    } else if (!strcmp(&lc->current_char, "*")) {
+    } else if (lc->current_char == '*') {
         token.type = TOKEN_STAR;
     }
 
