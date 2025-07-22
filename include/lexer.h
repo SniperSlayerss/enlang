@@ -69,6 +69,7 @@ typedef union {
 typedef struct {
     TokenType type;
     TokenValue value;
+    DataType data_type;
 } Token;
 
 typedef struct {
