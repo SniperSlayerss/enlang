@@ -2,6 +2,7 @@
 #define UTILS_H
 #include <ctype.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,60 +83,17 @@ typedef struct {
         (arr).size = (arr).cap = 0; \
     } while (0)
 
-// static inline void sb_append(StringBuilder* sb, char c)
-// {
-//     if (sb->length + 1 >= sb->capacity) {
-//         sb->capacity *= 2;
-//         char* tmp = (char*)realloc(sb->msg, (sizeof(char) * sb->capacity));
-//
-//         if (!tmp) {
-//             if (sb->msg) {
-//                 free(sb->msg);
-//             }
-//             LOG_ERR("Realloc failed: %s", strerror(errno));
-//             exit(ENOMEM);
-//         }
-//         sb->msg = tmp;
-//     }
-//
-//     sb->msg[sb->length++] = c;
-//     sb->msg[sb->length] = '\0';
-// }
-// static inline void sb_init(StringBuilder* sb)
-// {
-//     sb->capacity = 16;
-//     sb->length = 0;
-//     sb->msg = (char*)malloc(sizeof(char) * sb->capacity);
-//     if (!sb->msg) {
-//         LOG_ERR("Malloc failed: %s", strerror(errno));
-//         exit(ENOMEM);
-//     }
-//     sb->msg[0] = '\0';
-// }
+#define sb_appendf(arr, ...)                                          \
+    do {                                                              \
+        char _tmp_buf[256];                                           \
+        int _len = snprintf(_tmp_buf, sizeof(_tmp_buf), __VA_ARGS__); \
+        if (_len < 0)                                                 \
+            break; /* encoding error */                               \
+        while ((arr).size + _len + 1 > (arr).cap)                     \
+            _sb_reserve(arr);                                         \
+        memcpy(&(arr).msg[(arr).size], _tmp_buf, _len);               \
+        (arr).size += _len;                                           \
+        (arr).msg[(arr).size] = '\0';                                 \
+    } while (0)
 
-// static inline void sb_init_and_clear(StringBuilder* sb)
-// {
-//     if (sb->msg) {
-//         sb->msg = NULL;
-//     }
-//     sb->capacity = 16;
-//     sb->length = 0;
-//     sb->msg = (char*)malloc(sizeof(char) * sb->capacity);
-//     if (!sb->msg) {
-//         LOG_ERR("Malloc failed: %s", strerror(errno));
-//         exit(ENOMEM);
-//     }
-//     sb->msg[0] = '\0';
-// }
-//
-// static inline void sb_destroy(StringBuilder* sb)
-// {
-//     if (sb->msg) {
-//         free(sb->msg);
-//         sb->msg = NULL;
-//     }
-//     sb->length = 0;
-//     sb->capacity = 0;
-// }
-//
 #endif
