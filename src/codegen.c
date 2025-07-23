@@ -1,3 +1,4 @@
+#include "codegen.h"
 #include "parser.h"
 #include <stdlib.h>
 
@@ -13,29 +14,10 @@ int main()
 
     Expr** ast = create_ast(&lc);
 
-    for (int i = 0; ast[i] != NULL; i++) {
-        Expr* expr = ast[i];
-        switch (expr->type) {
-        case EXPR_FUNC_CALL:
-            printf("EXPR_FUNC_CALL\n");
-            break;
-        case EXPR_FUNC_DEF:
-            printf("EXPR_FUNC_DEF\n");
-            break;
-        case EXPR_VAR_ASSIGN:
-            printf("EXPR_VAR_ASSIGN\n");
-            break;
-        case EXPR_EXTERNAL:
-            printf("EXPR_EXTERNAL\n");
-            break;
-        case EXPR_LITERAL:
-            printf("EXPR_LITERAL\n");
-            break;
-        case EXPR_TYPE:
-            printf("EXPR_TYPE\n");
-            break;
-        }
-    }
+    sb_init(output);
+    codegen_create_header(output);
+    // Multiple pass approach
+    // 1. 
 
     return EXIT_SUCCESS;
 }
