@@ -14,10 +14,14 @@ int main()
 
     Expr** ast = create_ast(&lc);
 
-    sb_init(output);
-    codegen_create_header(output);
     // Multiple pass approach
-    // 1. 
+    // 1. Get information about AST
+    ASTInfo* ast_info = codegen_populate_ASTInfo(ast);
+
+    // 2. Generate assembly
+    sb_init(output);
+
+    codegen_create_header(output);
 
     return EXIT_SUCCESS;
 }
