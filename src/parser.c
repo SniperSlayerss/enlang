@@ -22,7 +22,7 @@ Expr* parse_type(LexerContext* lc)
 
         Expr* arg_expr = malloc(sizeof *arg_expr);
         arg_expr->type = EXPR_TYPE;
-        arg_expr->data.arg = arg;
+        arg_expr->as.arg = arg;
 
         LEX_EXPECT_NEXT(lc, TOKEN_PERIOD); // Eat '...'
         return arg_expr;
@@ -58,7 +58,7 @@ Expr* parse_type(LexerContext* lc)
 
     Expr* arg_expr = malloc(sizeof *arg_expr);
     arg_expr->type = EXPR_TYPE;
-    arg_expr->data.arg = arg;
+    arg_expr->as.arg = arg;
 
     return arg_expr;
 }
@@ -76,7 +76,7 @@ Expr* parse_external(LexerContext* lc)
 
     Expr* extrn_expr = malloc(sizeof *extrn_expr);
     extrn_expr->type = EXPR_EXTERNAL;
-    extrn_expr->data.extrn_def = extrn_def;
+    extrn_expr->as.extrn_def = extrn_def;
 
     return extrn_expr;
 }
@@ -87,7 +87,7 @@ Expr* parse_func_call(LexerContext* lc)
 
     // TODO implement function call ast
     // Take in parameters, should be similar to defintion loop
-    da_init(Expr*, params);
+    da_new(Expr*, params);
     while (lc->token.type != TOKEN_RPAREN) {
         da_append(params, parse_main(lc, true));
 
@@ -112,7 +112,7 @@ Expr* parse_func_def(LexerContext* lc)
 
     LEX_EXPECT_NEXT(lc, TOKEN_COLON); // Eat identifier
 
-    da_init(Expr*, body);
+    da_new(Expr*, body);
     lex_get_next_token(lc); // Eat ':'
     while (lc->token.type != TOKEN_PERIOD) {
         da_append(body, parse_main(lc, true));
@@ -142,7 +142,7 @@ Expr* parse_func_def(LexerContext* lc)
         return NULL;
     }
     func_def_expr->type = EXPR_FUNC_DEF;
-    func_def_expr->data.func_def = func_def;
+    func_def_expr->as.func_def = func_def;
 
     return func_def_expr;
 }
@@ -173,7 +173,7 @@ Expr* parse_literal(LexerContext* lc)
     }
 
     literal_expr->type = EXPR_LITERAL;
-    literal_expr->data.literal = literal;
+    literal_expr->as.literal = literal;
 
     return literal_expr;
 }
@@ -220,7 +220,7 @@ Expr* parse_var_assign(LexerContext* lc)
         return NULL;
     }
     var_expr->type = EXPR_VAR_ASSIGN;
-    var_expr->data.var_assign = var_assign;
+    var_expr->as.var_assign = var_assign;
 
     return var_expr;
 }
@@ -274,7 +274,7 @@ Expr** create_ast(LexerContext* lc)
 {
     lex_get_next_token(lc);
 
-    da_init(Expr*, ast);
+    da_new(Expr*, ast);
     while (lc->token.type != TOKEN_EOF) {
         da_append(ast, parse_main(lc, false));
         lex_get_next_token(lc);

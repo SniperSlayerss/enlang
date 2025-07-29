@@ -53,15 +53,17 @@ typedef struct {
     ASTArgument** args;
 } ASTFuncCall;
 
+typedef union {
+    char as_char;
+    char* as_string;
+    int as_int;
+    int16_t as_int16;
+    float as_float;
+} LiteralValues;
+
 // TODO: Allow over literal types
 typedef struct {
-    union {
-        char as_char;
-        char* as_string;
-        int as_int;
-        int16_t as_int16;
-        float as_float;
-    } value;
+    LiteralValues value;
     DataType data_type;
 } ASTLiteral;
 
@@ -75,7 +77,7 @@ struct Expr {
         ASTLiteral* literal;
         ASTType* type;
         ASTArgument* arg;
-    } data;
+    } as;
 };
 
 Expr** create_ast(LexerContext* lc);
