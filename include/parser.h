@@ -50,7 +50,7 @@ typedef struct {
 
 typedef struct {
     const char* identifier;
-    ASTArgument** args;
+    Expr** args;
 } ASTFuncCall;
 
 typedef union {

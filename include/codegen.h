@@ -8,29 +8,28 @@ typedef struct{
 } Literal;
 
 typedef struct{
-    Literal* data;
+    Literal** data;
     size_t size, cap;
 } LiteralArray;
 
 typedef struct {
-    char* name;
+    char* label;
     // Get type information
 } FuncCall;
 
 typedef struct {
-    FuncCall* data;
+    FuncCall** data;
     size_t size, cap;
 } FuncCallArray;
 
 typedef struct {
-    char* name;
     char* label;
     LiteralArray literal_array;
     FuncCallArray func_call_array;
 } FuncDef;
 
 typedef struct {
-    FuncDef* data;
+    FuncDef** data;
     size_t size, cap;
 } FuncDefArray;
 
@@ -44,7 +43,7 @@ typedef struct {
     FuncDefArray func_defs;
 } ASTInfo;
 
-void codegen_populate_ASTInfo(Expr** ast, ASTInfo* info);
+void codegen_analyze(Expr** ast, ASTInfo* info);
 void codegen_generate_header(StringBuilder output);
 
 #endif

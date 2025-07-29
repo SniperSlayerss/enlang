@@ -81,15 +81,15 @@ Expr* parse_external(LexerContext* lc)
     return extrn_expr;
 }
 
-Expr* parse_func_call(LexerContext* lc)
+Expr* parse_func_call(LexerContext* lc, char* identifier)
 {
     lex_get_next_token(lc); // Eat '('
 
     // TODO implement function call ast
     // Take in parameters, should be similar to defintion loop
-    da_new(Expr*, params);
+    da_new(Expr*, args);
     while (lc->token.type != TOKEN_RPAREN) {
-        da_append(params, parse_main(lc, true));
+        da_append(args, parse_main(lc, true));
 
         if (lc->token.type == TOKEN_COMMA) {
             lex_get_next_token(lc);
@@ -97,9 +97,19 @@ Expr* parse_func_call(LexerContext* lc)
             LEX_EXPECT_NEXT(lc, TOKEN_RPAREN);
         }
     }
-    params.data[params.size] = NULL;
+    da_append(args, NULL);
 
     LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
+
+    ASTFuncCall* func_call = malloc(sizeof *func_call);
+    func_call->identifier = identifier;
+    func_call->args = args.data;
+
+    Expr* func_call_expr = malloc(sizeof *func_call_expr);
+    func_call_expr->type = EXPR_FUNC_CALL;
+    func_call_expr->as.func_call = func_call;
+
+    return func_call_expr;
 }
 
 Expr* parse_func_def(LexerContext* lc)
@@ -115,7 +125,8 @@ Expr* parse_func_def(LexerContext* lc)
     da_new(Expr*, body);
     lex_get_next_token(lc); // Eat ':'
     while (lc->token.type != TOKEN_PERIOD) {
-        da_append(body, parse_main(lc, true));
+        Expr* expr = parse_main(lc, true);
+        da_append(body, expr);
 
         if (lc->token.type == TOKEN_COMMA) {
             lex_get_next_token(lc);
@@ -123,7 +134,7 @@ Expr* parse_func_def(LexerContext* lc)
             LEX_EXPECT(lc, TOKEN_PERIOD);
         }
     }
-    body.data[body.size] = NULL;
+    da_append(body, NULL);
 
     ASTFuncDef* func_def = malloc(sizeof *func_def);
     if (func_def == NULL) {
@@ -232,8 +243,10 @@ Expr* parse_identifier(LexerContext* lc)
 
     // If we get '(' then the identifier is part of a function call
     if (lc->token.type == TOKEN_LPAREN) {
-        Expr* expr = parse_func_call(lc);
+        return parse_func_call(lc, identifier);
     }
+
+    // Otherwise its just a variable reference
 }
 
 // TODO Parse expressions properly
@@ -249,7 +262,7 @@ Expr* parse_expression(LexerContext* lc)
 
 Expr* parse_main(LexerContext* lc, bool is_func_body)
 {
-    Expr* expr;
+    Expr* expr = malloc(sizeof *expr);
     if (!is_func_body) {
         if (lc->token.type == TOKEN_EXTERNAL)
             return parse_external(lc);
@@ -263,7 +276,7 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
     if (lc->token.type == TOKEN_IDENTIFIER)
         return parse_identifier(lc);
 
-    if (lc->token.type == TOKEN_LITERAL)
+    if (lc->token.type == TOKEN_LITERAL) 
         return parse_literal(lc);
 
     lex_get_next_token(lc);
@@ -279,8 +292,7 @@ Expr** create_ast(LexerContext* lc)
         da_append(ast, parse_main(lc, false));
         lex_get_next_token(lc);
     }
-
-    ast.data[ast.size] = NULL;
+    da_append(ast, NULL);
 
     return ast.data;
 }
