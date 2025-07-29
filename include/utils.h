@@ -11,11 +11,18 @@
     fprintf(stderr, "ERROR [%s:%d %s]: " fmt "\n", \
         __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-#define da_init(T, name)  \
+#define da_new(T, name)  \
     struct {              \
         T* data;          \
         size_t size, cap; \
     } name = { NULL, 0, 0 }
+
+#define da_init(ptr)          \
+    do {                      \
+        (ptr).data = NULL;    \
+        (ptr).size = 0;       \
+        (ptr).cap = 0;        \
+    } while (0)
 
 #define _da_reserve(arr)                                                \
     do {                                                                \
