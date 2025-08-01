@@ -47,10 +47,12 @@ bool lex_get_next_token(LexerContext* lc)
 
     if (lc->current_char == '"')
     {
-        sb_init(sb);
+        StringBuilder sb;
+	sb_init(&sb);
+
         get_next_char(lc);
         while (lc->current_char != '"') {
-            sb_append(sb, lc->current_char);
+            sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
@@ -68,11 +70,12 @@ bool lex_get_next_token(LexerContext* lc)
     }
 
     if (isalpha(lc->current_char)) {
-        sb_init(sb);
+        StringBuilder sb;
+	sb_init(&sb);
 
         while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*' && lc->current_char != '.') {
 
-            sb_append(sb, lc->current_char);
+            sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
@@ -156,7 +159,8 @@ bool lex_get_next_token(LexerContext* lc)
 
     // 5 : int16.
     // 5.01 : float.
-    sb_init(sb);
+    StringBuilder sb;
+    sb_init(&sb);
     if (isdigit(lc->current_char) || lc->current_char == '.') {
         bool has_decimal = lc->current_char == '.';
         bool is_literal = false;
@@ -165,7 +169,7 @@ bool lex_get_next_token(LexerContext* lc)
             if (lc->current_char == '.' && has_decimal)
                 break;
             is_literal = true;
-            sb_append(sb, lc->current_char);
+            sb_append_char(&sb, lc->current_char);
 
             has_decimal = lc->current_char == '.';
 

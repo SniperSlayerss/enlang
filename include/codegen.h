@@ -2,12 +2,13 @@
 #define CODEGEN_H
 #include "parser.h"
 
-typedef struct{
+typedef struct {
     char* label;
+    DataType type;
     LiteralValues value;
 } Literal;
 
-typedef struct{
+typedef struct {
     Literal** data;
     size_t size, cap;
 } LiteralArray;
@@ -34,16 +35,19 @@ typedef struct {
 } FuncDefArray;
 
 typedef struct {
-    char** data;
+    const char** data;
     size_t size, cap;
 } ExternalArray;
 
 typedef struct {
     ExternalArray externals;
     FuncDefArray func_defs;
+    LiteralArray global_literals;
 } ASTInfo;
 
-void codegen_analyze(Expr** ast, ASTInfo* info);
-void codegen_generate_header(StringBuilder output);
+// Create these for different backends
+void emit_header(StringBuilder* out,  ASTInfo* info);
+void emit_data_section(StringBuilder* out, ASTInfo* info);
+void emit_data_literal(StringBuilder* out, Literal* literal);
 
 #endif
