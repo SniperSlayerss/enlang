@@ -95,7 +95,7 @@ static inline void sb_append_char(StringBuilder* sb, char c) {
     sb->msg[sb->size] = '\0';
 }
 
-static inline void sb_append_str(StringBuilder* sb, const char* str) {
+static inline void sb_append(StringBuilder* sb, const char* str) {
     if (!str) return;
     
     size_t str_len = strlen(str);
@@ -108,12 +108,6 @@ static inline void sb_append_str(StringBuilder* sb, const char* str) {
     memcpy(&sb->msg[sb->size], str, str_len);
     sb->size += str_len;
     sb->msg[sb->size] = '\0';
-}
-
-static inline void sb_append_int(StringBuilder* sb, int value) {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d", value);
-    sb_append_str(sb, buffer);
 }
 
 static inline void sb_appendf(StringBuilder* sb, const char* format, ...) {
@@ -143,23 +137,6 @@ static inline void sb_appendf(StringBuilder* sb, const char* format, ...) {
     va_end(args);
 }
 
-static inline void sb_clear(StringBuilder* sb) {
-    sb->size = 0;
-    if (sb->msg) {
-        sb->msg[0] = '\0';
-    }
-}
-
-static inline char* sb_to_string(StringBuilder* sb) {
-    if (!sb->msg) return strdup("");
-    return strdup(sb->msg);
-}
-
-static inline const char* sb_cstr(StringBuilder* sb) {
-    if (!sb->msg) return "";
-    return sb->msg;
-}
-
 static inline void sb_free_contents(StringBuilder* sb) {
     free(sb->msg);
     sb->msg = NULL;
@@ -172,4 +149,5 @@ static inline void sb_free(StringBuilder* sb) {
     sb_free_contents(sb);
     free(sb);
 }
+
 #endif
