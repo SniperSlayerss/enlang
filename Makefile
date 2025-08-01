@@ -1,4 +1,4 @@
-CC := gcc
+CC := cc
 CFLAGS := -Wall -Wextra -O2 -Iinclude
 SRC :=  src/codegen.c src/parser.c src/lexer.c
 OBJ := $(SRC:src/%.c=build/%.o)

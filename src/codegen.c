@@ -50,16 +50,22 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
 
     switch (expr->type) {
     case EXPR_FUNC_DEF: // Has Expr** body
+        ASTFuncDef* expr_func_def = expr->as.func_def;
+
+        if (expr_func_def == NULL)
+            break;
+
         FuncDef* func_def = malloc(sizeof *func_def);
-        if (expr->as.func_def != NULL) {
-            func_def->label = (char*)expr->as.func_def->name;
-        }
+        func_def->label = (char*)expr->as.func_def->name;
+
+        if (expr_func_def->is_entry_point)
+            info->has_entry_point = true;
 
         da_init(func_def->func_call_array);
         da_init(func_def->literal_array);
 
         if (expr->as.func_def->body != NULL) {
-            for (int i = 0; expr->as.func_def->body[i] != NULL; i++) {
+            for (int i = 0; expr_func_def->body[i] != NULL; i++) {
                 codegen_traverse_expr(expr->as.func_def->body[i], info, func_def);
             }
         }
@@ -67,47 +73,58 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         da_append(info->func_defs, func_def);
         break;
     case EXPR_VAR_ASSIGN: // Has Expr* expression
-        if (expr->as.var_assign != NULL) {
-            codegen_traverse_expr(expr->as.var_assign->assign_expr, info, current_func);
-        }
+        ASTVarAssign* expr_var_assign = expr->as.var_assign;
+        if (expr_var_assign == NULL)
+            break;
+
+        codegen_traverse_expr(expr_var_assign->assign_expr, info, current_func);
         break;
     case EXPR_FUNC_CALL:
+        ASTFuncCall* expr_func_call = expr->as.func_call;
+        if (expr_func_call == NULL)
+            break;
+
         FuncCall* func_call = malloc(sizeof *func_call);
-        if (expr->as.func_call != NULL) {
-            func_call->label = (char*)expr->as.func_call->identifier;
-        }
+        func_call->label = (char*)expr_func_call->identifier;
 
         if (current_func != NULL) {
             da_append(current_func->func_call_array, func_call);
         }
 
-        for (int i = 0; expr->as.func_call->args[i] != NULL; i++) {
+        for (int i = 0; expr_func_call->args[i] != NULL; i++) {
             codegen_traverse_expr(expr->as.func_call->args[i], info, current_func);
         }
+
         break;
     case EXPR_EXTERNAL:
+        ASTExtrnDef* expr_extrn = expr->as.extrn_def;
         if (!info->externals.data) {
             da_init(info->externals);
+            da_append(info->externals, expr_extrn->identifier);
         }
-        da_append(info->externals, expr->as.extrn_def->identifier);
         break;
     case EXPR_LITERAL:
+        ASTLiteral* expr_literal = expr->as.literal;
+
+        if (expr_literal == NULL)
+            break;
+
         Literal* literal = malloc(sizeof *literal);
 
-        literal->type = expr->as.literal->data_type;
+        literal->type = expr_literal->data_type;
 
         // Dynamically name labels
         if (current_func != NULL) {
-            int len = snprintf(NULL, 0, "%s_%s_%ld", current_func->label, get_type_as_string(expr->as.literal->data_type), current_func->literal_array.size) + 1;
+            int len = snprintf(NULL, 0, "%s_%s_%ld", current_func->label, get_type_as_string(expr_literal->data_type), current_func->literal_array.size) + 1;
             literal->label = malloc(len);
-            snprintf(literal->label, len, "%s_%s_%ld", current_func->label, get_type_as_string(expr->as.literal->data_type), current_func->literal_array.size);
+            snprintf(literal->label, len, "%s_%s_%ld", current_func->label, get_type_as_string(expr_literal->data_type), current_func->literal_array.size);
         } else {
-            int len = snprintf(NULL, 0, "%s_%ld", get_type_as_string(expr->as.literal->data_type), info->global_literals.size) + 1;
+            int len = snprintf(NULL, 0, "%s_%ld", get_type_as_string(expr_literal->data_type), info->global_literals.size) + 1;
             literal->label = malloc(len);
-            snprintf(literal->label, len, "%s_%ld", get_type_as_string(expr->as.literal->data_type), info->global_literals.size);
+            snprintf(literal->label, len, "%s_%ld", get_type_as_string(expr_literal->data_type), info->global_literals.size);
         }
         if (expr->as.literal != NULL) {
-            literal->value = expr->as.literal->value;
+            literal->value = expr_literal->value;
         }
 
         if (current_func != NULL) {
@@ -135,15 +152,16 @@ void codegen_analyze(Expr** ast, ASTInfo* info)
 // Code generation
 void emit_header(StringBuilder* out, ASTInfo* info)
 {
-    sb_append_str(out, "section.note.GNU - stack noalloc noexec nowrite progbits\n");
+    sb_append_char(out, '\n');
+    sb_append(out, "section.note.GNU - stack noalloc noexec nowrite progbits\n");
 }
 
 void emit_data_literal(StringBuilder* out, Literal* literal)
 {
     switch (literal->type) {
     case TYPE_STRING:
-        sb_appendf(out, "%s db \"%s\", 0\n", literal->label, literal->value.as_string);
-	break;
+        sb_appendf(out, "    %s db \"%s\", 0\n", literal->label, literal->value.as_string);
+        break;
     default:
         LOG_ERR("Not implemented yet");
     }
@@ -152,27 +170,52 @@ void emit_data_literal(StringBuilder* out, Literal* literal)
 void emit_data_section(StringBuilder* out, ASTInfo* info)
 {
     sb_append_char(out, '\n');
-    sb_append_str(out, "section .data\n");
+    sb_append(out, "section .data\n");
 
+    // TODO: ADD BETTER LOGGING, handle NULL better
     if (info->global_literals.data != NULL) {
         for (int i = 0; i < info->global_literals.size; i++) {
             emit_data_literal(out, info->global_literals.data[i]);
         }
     }
 
-    if (info->func_defs.data == NULL) 
-	return;
+    if (info->func_defs.data == NULL)
+        // TODO: ADD BETTER LOGGING
+        return;
 
     for (int i = 0; i < info->func_defs.size; i++) {
-	if (info->func_defs.data[i]->literal_array.data == NULL) {
-	    return;
-	}
+        if (info->func_defs.data[i]->literal_array.data == NULL) {
+            // TODO: ADD BETTER LOGGING
+            return;
+        }
 
-	for (int j = 0; j < info->func_defs.data[i]->literal_array.size; j++) {
-	    emit_data_literal(out, info->func_defs.data[i]->literal_array.data[j]);
-	}
+        for (int j = 0; j < info->func_defs.data[i]->literal_array.size; j++) {
+            emit_data_literal(out, info->func_defs.data[i]->literal_array.data[j]);
+        }
     }
 }
+
+void emit_text_section(StringBuilder* out, ASTInfo* info)
+{
+    sb_append_char(out, '\n');
+    sb_append(out, "section .text\n");
+
+    if (info->has_entry_point)
+	sb_append(out, "    global main\n");
+}
+
+void emit_externals(StringBuilder* out, ASTInfo* info)
+{
+    if (info->externals.data == NULL) {
+        // TODO: ADD BETTER LOGGING
+        return;
+    }
+
+    for (int i = 0; i < info->externals.size; i++) {
+        sb_appendf(out, "extern %s\n", info->externals.data[i]);
+    }
+}
+
 
 int main()
 {
@@ -195,9 +238,12 @@ int main()
     StringBuilder out;
     sb_init(&out);
 
+    emit_externals(&out, &info);
     emit_header(&out, &info);
     emit_data_section(&out, &info);
-    printf("%s", out.msg);
+    emit_text_section(&out, &info);
+    printf("\n%s", out.msg);
 
     return EXIT_SUCCESS;
 }
+

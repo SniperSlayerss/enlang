@@ -262,7 +262,6 @@ Expr* parse_expression(LexerContext* lc)
 
 Expr* parse_main(LexerContext* lc, bool is_func_body)
 {
-    Expr* expr = malloc(sizeof *expr);
     if (!is_func_body) {
         if (lc->token.type == TOKEN_EXTERNAL)
             return parse_external(lc);
@@ -280,7 +279,6 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
         return parse_literal(lc);
 
     lex_get_next_token(lc);
-    return expr;
 }
 
 Expr** create_ast(LexerContext* lc)

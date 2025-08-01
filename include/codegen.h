@@ -43,11 +43,14 @@ typedef struct {
     ExternalArray externals;
     FuncDefArray func_defs;
     LiteralArray global_literals;
+    bool has_entry_point;
 } ASTInfo;
 
 // Create these for different backends
 void emit_header(StringBuilder* out,  ASTInfo* info);
 void emit_data_section(StringBuilder* out, ASTInfo* info);
 void emit_data_literal(StringBuilder* out, Literal* literal);
+void emit_text_section(StringBuilder* out, ASTInfo* info);
+void emit_externals(StringBuilder* out, ASTInfo* info);
 
 #endif
