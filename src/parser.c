@@ -81,7 +81,7 @@ Expr* parse_external(LexerContext* lc)
     return extrn_expr;
 }
 
-Expr* parse_func_call(LexerContext* lc, char* identifier)
+Expr* parse_func_call(LexerContext* lc, const char* identifier)
 {
     lex_get_next_token(lc); // Eat '('
 

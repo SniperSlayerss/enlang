@@ -7,22 +7,22 @@ void display_traverse_tree(Expr* expr)
     switch (expr->type) {
     case EXPR_FUNC_CALL:
         printf("Function call\n");
-	break;
+        break;
     case EXPR_LITERAL:
         printf("Literal\n");
-	break;
+        break;
     case EXPR_EXTERNAL:
         printf("External\n");
-	break;
+        break;
     case EXPR_FUNC_DEF:
         printf("Function definition\n");
         for (int i = 0; expr->as.func_def->body[i] != NULL; i++) {
             display_traverse_tree(expr->as.func_def->body[i]);
         }
-	break;
+        break;
     case EXPR_VAR_ASSIGN:
         printf("Var assign\n");
-	display_traverse_tree(expr->as.var_assign->assign_expr);
+        display_traverse_tree(expr->as.var_assign->assign_expr);
     }
 }
 
@@ -33,6 +33,15 @@ void display_ast_tree(Expr** ast)
     }
 }
 
+char* get_type_as_string(DataType type)
+{
+    switch (type) {
+    case TYPE_STRING:
+        return "str";
+    defualt:
+        LOG_ERR("Not implemented data type yet");
+    }
+}
 
 void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
 {
@@ -41,14 +50,13 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
 
     switch (expr->type) {
     case EXPR_FUNC_DEF: // Has Expr** body
-        printf("Function defintion\n");
         FuncDef* func_def = malloc(sizeof *func_def);
         if (expr->as.func_def != NULL) {
-            func_def->label = expr->as.func_def->name;
+            func_def->label = (char*)expr->as.func_def->name;
         }
 
-	da_init(func_def->func_call_array);
-	da_init(func_def->literal_array);
+        da_init(func_def->func_call_array);
+        da_init(func_def->literal_array);
 
         if (expr->as.func_def->body != NULL) {
             for (int i = 0; expr->as.func_def->body[i] != NULL; i++) {
@@ -56,47 +64,56 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
             }
         }
 
-	da_append(info->func_defs, func_def);
+        da_append(info->func_defs, func_def);
         break;
     case EXPR_VAR_ASSIGN: // Has Expr* expression
-        printf("Var assign\n");
         if (expr->as.var_assign != NULL) {
             codegen_traverse_expr(expr->as.var_assign->assign_expr, info, current_func);
         }
         break;
     case EXPR_FUNC_CALL:
-        printf("Function call\n");
         FuncCall* func_call = malloc(sizeof *func_call);
         if (expr->as.func_call != NULL) {
-            func_call->label = expr->as.func_call->identifier;
+            func_call->label = (char*)expr->as.func_call->identifier;
         }
 
         if (current_func != NULL) {
             da_append(current_func->func_call_array, func_call);
         }
 
-	for (int i = 0; expr->as.func_call->args[i] != NULL; i++) {
-	    codegen_traverse_expr(expr->as.func_call->args[i], info, current_func);
-	}
+        for (int i = 0; expr->as.func_call->args[i] != NULL; i++) {
+            codegen_traverse_expr(expr->as.func_call->args[i], info, current_func);
+        }
         break;
     case EXPR_EXTERNAL:
-        printf("External\n");
         if (!info->externals.data) {
             da_init(info->externals);
         }
         da_append(info->externals, expr->as.extrn_def->identifier);
         break;
     case EXPR_LITERAL:
-        printf("Literal\n");
         Literal* literal = malloc(sizeof *literal);
+
+        literal->type = expr->as.literal->data_type;
+
         // Dynamically name labels
-        literal->label = "label_test";
+        if (current_func != NULL) {
+            int len = snprintf(NULL, 0, "%s_%s_%ld", current_func->label, get_type_as_string(expr->as.literal->data_type), current_func->literal_array.size) + 1;
+            literal->label = malloc(len);
+            snprintf(literal->label, len, "%s_%s_%ld", current_func->label, get_type_as_string(expr->as.literal->data_type), current_func->literal_array.size);
+        } else {
+            int len = snprintf(NULL, 0, "%s_%ld", get_type_as_string(expr->as.literal->data_type), info->global_literals.size) + 1;
+            literal->label = malloc(len);
+            snprintf(literal->label, len, "%s_%ld", get_type_as_string(expr->as.literal->data_type), info->global_literals.size);
+        }
         if (expr->as.literal != NULL) {
             literal->value = expr->as.literal->value;
         }
 
         if (current_func != NULL) {
             da_append(current_func->literal_array, literal);
+        } else {
+            da_append(info->global_literals, literal);
         }
         break;
     case EXPR_TYPE:
@@ -109,11 +126,53 @@ void codegen_analyze(Expr** ast, ASTInfo* info)
 {
     da_init(info->func_defs);
     da_init(info->externals);
+    da_init(info->global_literals);
     for (int i = 0; ast[i] != NULL; i++) {
         codegen_traverse_expr(ast[i], info, NULL);
     }
 }
 
+// Code generation
+void emit_header(StringBuilder* out, ASTInfo* info)
+{
+    sb_append_str(out, "section.note.GNU - stack noalloc noexec nowrite progbits\n");
+}
+
+void emit_data_literal(StringBuilder* out, Literal* literal)
+{
+    switch (literal->type) {
+    case TYPE_STRING:
+        sb_appendf(out, "%s db \"%s\", 0\n", literal->label, literal->value.as_string);
+	break;
+    default:
+        LOG_ERR("Not implemented yet");
+    }
+}
+
+void emit_data_section(StringBuilder* out, ASTInfo* info)
+{
+    sb_append_char(out, '\n');
+    sb_append_str(out, "section .data\n");
+
+    if (info->global_literals.data != NULL) {
+        for (int i = 0; i < info->global_literals.size; i++) {
+            emit_data_literal(out, info->global_literals.data[i]);
+        }
+    }
+
+    if (info->func_defs.data == NULL) 
+	return;
+
+    for (int i = 0; i < info->func_defs.size; i++) {
+	if (info->func_defs.data[i]->literal_array.data == NULL) {
+	    return;
+	}
+
+	for (int j = 0; j < info->func_defs.data[i]->literal_array.size; j++) {
+	    emit_data_literal(out, info->func_defs.data[i]->literal_array.data[j]);
+	}
+    }
+}
 
 int main()
 {
@@ -129,13 +188,16 @@ int main()
 
     // Multiple pass approach
     // 1. Get information about AST
-    ASTInfo ast_info = { 0 };
-    codegen_analyze(ast, &ast_info); 
+    ASTInfo info = { 0 };
+    codegen_analyze(ast, &info);
 
     // 2. Generate assembly
-    sb_init(out);
+    StringBuilder out;
+    sb_init(&out);
 
-    // codegen_create_header(output);
+    emit_header(&out, &info);
+    emit_data_section(&out, &info);
+    printf("%s", out.msg);
 
     return EXIT_SUCCESS;
 }
