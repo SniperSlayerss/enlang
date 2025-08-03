@@ -46,11 +46,9 @@ typedef struct {
     bool has_entry_point;
 } ASTInfo;
 
-// Create these for different backends
-void emit_header(StringBuilder* out,  ASTInfo* info);
-void emit_data_section(StringBuilder* out, ASTInfo* info);
-void emit_data_literal(StringBuilder* out, Literal* literal);
-void emit_text_section(StringBuilder* out, ASTInfo* info);
-void emit_externals(StringBuilder* out, ASTInfo* info);
+char* get_type(DataType type);
+
+// This should generate then store the source code in out
+void generate_program(Expr** ast, ASTInfo* info, StringBuilder* out);
 
 #endif

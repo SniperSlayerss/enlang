@@ -1,4 +1,7 @@
 external printf.
+external exit.
 
 run main:
-    printf("Hello world!\n").
+    printf("Hello %s %s %s%s%s\n", "world!", "Look at this", "1..", "2...", "3...."),
+    printf("BOO!!!\n"),
+    exit(0).
