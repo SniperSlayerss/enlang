@@ -91,15 +91,19 @@ Expr* parse_func_call(LexerContext* lc, const char* identifier)
     while (lc->token.type != TOKEN_RPAREN) {
         da_append(args, parse_main(lc, true));
 
-        if (lc->token.type == TOKEN_COMMA) {
-            lex_get_next_token(lc);
+        if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
+            LEX_EXPECT(lc, TOKEN_RPAREN);
         } else {
-            LEX_EXPECT_NEXT(lc, TOKEN_RPAREN);
+            lex_get_next_token(lc);
         }
     }
     da_append(args, NULL);
 
-    LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
+    lex_get_next_token(lc);
+    if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
+	// TODO: add comma to error message, or only allow period at end of function def
+        LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
+    }
 
     ASTFuncCall* func_call = malloc(sizeof *func_call);
     func_call->identifier = identifier;
@@ -185,6 +189,8 @@ Expr* parse_literal(LexerContext* lc)
 
     literal_expr->type = EXPR_LITERAL;
     literal_expr->as.literal = literal;
+
+    lex_get_next_token(lc);
 
     return literal_expr;
 }
@@ -275,9 +281,10 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
     if (lc->token.type == TOKEN_IDENTIFIER)
         return parse_identifier(lc);
 
-    if (lc->token.type == TOKEN_LITERAL) 
+    if (lc->token.type == TOKEN_LITERAL)
         return parse_literal(lc);
 
+    printf("%d\n", lc->token.type);
     lex_get_next_token(lc);
 }
 
