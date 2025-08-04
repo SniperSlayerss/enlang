@@ -1,6 +1,36 @@
 #include "codegen.h"
+#include "nob.h"
 #include "parser.h"
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+const char* arg_registers_64[] = {
+    "rdi",
+    "rsi",
+    "rdx",
+    "rcx",
+    "r8",
+    "r9"
+};
+
+const char* arg_registers_32[] = {
+    "edi",
+    "esi",
+    "edx",
+    "ecx",
+    "r8d",
+    "r9d"
+};
+
+#define MAX_REG_ARGS 6
+
+typedef struct {
+    ASTFuncDef* current_func;
+    size_t num_of_current_lit, num_of_global_lit;
+    char* current_literal_label;
+    DataType current_literal_type;
+} ASTContext;
 
 void emit_notes(ASTInfo* info, StringBuilder* out)
 {
@@ -11,11 +41,17 @@ void emit_notes(ASTInfo* info, StringBuilder* out)
 void emit_data_literal(Literal* literal, StringBuilder* out)
 {
     switch (literal->type) {
+    case TYPE_DOUBLE:
+        sb_appendf(out, "    %s dq %lf\n", literal->label, literal->value.as_double);
+        break;
+    case TYPE_INT32:
+        sb_appendf(out, "    %s dd %d\n", literal->label, literal->value.as_int32);
+        break;
     case TYPE_STRING:
         sb_appendf(out, "    %s db `%s`, 0\n", literal->label, literal->value.as_string);
         break;
     default:
-        LOG_ERR("Not implemented yet");
+        NOB_TODO("Add more type literals");
     }
 }
 
@@ -68,38 +104,41 @@ void emit_externals(ASTInfo* info, StringBuilder* out)
     }
 }
 
-void emit_arg(char* literal_label, int arg, StringBuilder* out)
+void emit_arg(char* literal_label, int arg, ASTContext* context, StringBuilder* out)
 {
-    switch (arg) {
-    case 0:
-        sb_appendf(out, "    mov rdi, %s\n", literal_label);
-        break;
-    case 1:
-        sb_appendf(out, "    mov rsi, %s\n", literal_label);
-        break;
-    case 2:
-        sb_appendf(out, "    mov rdx, %s\n", literal_label);
-        break;
-    case 3:
-        sb_appendf(out, "    mov rcx, %s\n", literal_label);
-        break;
-    case 4:
-        sb_appendf(out, "    mov r8, %s\n", literal_label);
-        break;
-    case 5:
-        sb_appendf(out, "    mov r9, %s\n", literal_label);
-        break;
-    default:
-        // TODO: handle stack allocation
-        // sb_appendf(out, "    push %s\n", literal_label);
+
+    char* label;
+    if (context->current_literal_type != TYPE_STRING) { // TODO: handle this better? does this make sense for all literals?
+        int len = snprintf(NULL, 0, "[%s]", literal_label) + 1;
+        label = malloc(len);
+        snprintf(label, len, "[%s]", literal_label);
+    } else {
+        label = literal_label;
+    }
+
+    switch (context->current_literal_type) {
+    case TYPE_STRING:
+    case TYPE_DOUBLE:
+        if (arg < MAX_REG_ARGS) {
+            sb_appendf(out, "    mov %s, %s\n", arg_registers_64[arg], label);
+        } else {
+            // TODO: handle stack allocation
+            // Add tracker to ASTContext
+            // sb_appendf(out, "    push %s\n", label);
+        }
+	break;
+
+    case TYPE_INT32:
+        if (arg < MAX_REG_ARGS) {
+            sb_appendf(out, "    mov %s, %s\n", arg_registers_32[arg], label);
+        } else {
+            // TODO: handle stack allocation
+            // Add tracker to ASTContext
+            // sb_appendf(out, "    push %s\n", label);
+        }
+	break;
     }
 }
-
-typedef struct {
-    ASTFuncDef* current_func;
-    size_t num_of_current_lit, num_of_global_lit;
-    char* current_literal_label;
-} ASTContext;
 
 void traverse_ast(Expr* expr, ASTContext* context, StringBuilder* out)
 {
@@ -143,12 +182,13 @@ void traverse_ast(Expr* expr, ASTContext* context, StringBuilder* out)
 
         for (int i = 0; expr_func_call->args[i] != NULL; i++) {
             traverse_ast(expr->as.func_call->args[i], context, out);
-            emit_arg(context->current_literal_label, i, out);
+            emit_arg(context->current_literal_label, i, context, out);
         }
 
-	// TODO: set rax based on how many XMM registers are used
+        // TODO: set rax based on how many XMM registers are used
         sb_appendf(out, "    xor rax, rax\n");
         sb_appendf(out, "    call %s\n", expr_func_call->identifier);
+	sb_append_char(out, '\n');
 
         break;
     case EXPR_EXTERNAL:
@@ -158,6 +198,8 @@ void traverse_ast(Expr* expr, ASTContext* context, StringBuilder* out)
 
         if (expr_literal == NULL)
             break;
+
+        context->current_literal_type = expr_literal->data_type;
 
         // Dynamically name labels
         if (context->current_func != NULL) {
@@ -204,4 +246,51 @@ void generate_program(Expr** ast, ASTInfo* info, StringBuilder* out)
 {
     emit_program(ast, info, out);
     printf("\n%s", out->msg);
+}
+
+int generate_binary(char* filename, char* out)
+{
+    char* mkdir_args[] = { "mkdir", "-p", "build", NULL };
+    if (run_command(mkdir_args) != 0) {
+        printf("Error: Failed to create build directory\n");
+        return EXIT_FAILURE;
+    }
+
+    int asm_len = snprintf(NULL, 0, "build/%s.asm", filename) + 1;
+    char* asm_file = malloc(asm_len);
+    snprintf(asm_file, asm_len, "build/%s.asm", filename);
+
+    FILE* fptr = fopen(asm_file, "w");
+    fputs(out, fptr);
+    fclose(fptr);
+
+    int o_len = snprintf(NULL, 0, "build/%s.o", filename) + 1;
+    char* o_file = malloc(o_len);
+    snprintf(o_file, o_len, "build/%s.o", filename);
+
+    char* nasm_args[] = {
+        "nasm",
+        "-f", "elf64",
+        asm_file,
+        "-o", o_file,
+        NULL
+    };
+    if (run_command(nasm_args) != 0) {
+        printf("Error: NASM assembly failed\n");
+        return EXIT_FAILURE;
+    }
+
+    char* gcc_args[] = {
+        "gcc",
+        "-no-pie",
+        o_file,
+        "-o", filename,
+        NULL
+    };
+    if (run_command(gcc_args) != 0) {
+        printf("Error: Linking failed\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }

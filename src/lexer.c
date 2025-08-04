@@ -45,10 +45,9 @@ bool lex_get_next_token(LexerContext* lc)
         }
     }
 
-    if (lc->current_char == '"')
-    {
+    if (lc->current_char == '"') {
         StringBuilder sb;
-	sb_init(&sb);
+        sb_init(&sb);
 
         get_next_char(lc);
         while (lc->current_char != '"') {
@@ -60,18 +59,18 @@ bool lex_get_next_token(LexerContext* lc)
                 return true;
             }
         }
-	get_next_char(lc);
+        get_next_char(lc);
 
-	token.type = TOKEN_LITERAL;
-	token.data_type = TYPE_STRING;
-	token.value.as_string = sb.msg;
-	lc->token = token;
-	return true;
+        token.type = TOKEN_LITERAL;
+        token.data_type = TYPE_STRING;
+        token.value.as_string = sb.msg;
+        lc->token = token;
+        return true;
     }
 
     if (isalpha(lc->current_char)) {
         StringBuilder sb;
-	sb_init(&sb);
+        sb_init(&sb);
 
         while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*' && lc->current_char != '.') {
 
@@ -117,47 +116,47 @@ bool lex_get_next_token(LexerContext* lc)
             token.type = TOKEN_A;
         } else if (!strcmp(token.value.as_string, "int8")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_INT8;
+            token.data_type = TYPE_INT8;
         } else if (!strcmp(token.value.as_string, "int16")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_INT16;
+            token.data_type = TYPE_INT16;
         } else if (!strcmp(token.value.as_string, "int32")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_INT32;
+            token.data_type = TYPE_INT32;
         } else if (!strcmp(token.value.as_string, "int64")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_INT64;
+            token.data_type = TYPE_INT64;
         } else if (!strcmp(token.value.as_string, "uint8")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_UINT8;
+            token.data_type = TYPE_UINT8;
         } else if (!strcmp(token.value.as_string, "uint16")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_UINT16;
+            token.data_type = TYPE_UINT16;
         } else if (!strcmp(token.value.as_string, "uint32")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_UINT32;
+            token.data_type = TYPE_UINT32;
         } else if (!strcmp(token.value.as_string, "uint64")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_UINT64;
+            token.data_type = TYPE_UINT64;
         } else if (!strcmp(token.value.as_string, "float")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_FLOAT;
+            token.data_type = TYPE_FLOAT;
         } else if (!strcmp(token.value.as_string, "double")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_DOUBLE;
+            token.data_type = TYPE_DOUBLE;
         } else if (!strcmp(token.value.as_string, "char")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_CHAR;
+            token.data_type = TYPE_CHAR;
         } else if (!strcmp(token.value.as_string, "string")) {
             token.type = TOKEN_TYPE;
-            token.value.data_type = TYPE_STRING;
+            token.data_type = TYPE_STRING;
         }
 
         lc->token = token;
         return true;
     }
 
-    // 5 : int16.
+    // 5 : int32.
     // 5.01 : float.
     StringBuilder sb;
     sb_init(&sb);
@@ -182,10 +181,15 @@ bool lex_get_next_token(LexerContext* lc)
 
         if (is_literal) {
             token.type = TOKEN_LITERAL;
-            // TODO: accept different literal types
-            token.data_type = TYPE_INT16;
-            char* end;
-            token.value.as_int16 = (int16_t)strtol(sb.msg, &end, 10);
+            // TODO: accept different literal types with postfix
+            // i.e. 2.0 as float or 2.0f as per C
+            if (has_decimal) { // double
+                token.data_type = TYPE_DOUBLE;
+                token.value.as_double = strtod(sb.msg, NULL);
+            } else { // int32_t
+                token.data_type = TYPE_INT32;
+                token.value.as_int32 = (int32_t)strtol(sb.msg, NULL, 10);
+            }
             lc->token = token;
             return true;
         }

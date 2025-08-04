@@ -60,15 +60,14 @@ typedef enum {
 typedef union {
     char as_char;
     char* as_string;
-    int as_int;
-    int16_t as_int16;
+    int32_t as_int32;
     float as_float;
-    DataType data_type;
-} TokenValue;
+    double as_double;
+} LiteralValues;
 
 typedef struct {
     TokenType type;
-    TokenValue value;
+    LiteralValues value;
     DataType data_type;
 } Token;
 
