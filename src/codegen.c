@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "nob.h"
 #include <stdlib.h>
 
 void display_traverse_tree(Expr* expr)
@@ -35,10 +36,14 @@ void display_ast_tree(Expr** ast)
 char* get_type(DataType type)
 {
     switch (type) {
+    case TYPE_DOUBLE:
+        return "dbl";
+    case TYPE_INT32:
+        return "i32";
     case TYPE_STRING:
         return "str";
     defualt:
-        LOG_ERR("Not implemented data type yet");
+        NOB_TODO("Not implemented data type yet");
     }
 }
 
@@ -99,8 +104,8 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         ASTExtrnDef* expr_extrn = expr->as.extrn_def;
         if (!info->externals.data) {
             da_init(info->externals);
-            da_append(info->externals, expr_extrn->identifier);
         }
+        da_append(info->externals, expr_extrn->identifier);
         break;
     case EXPR_LITERAL:
         ASTLiteral* expr_literal = expr->as.literal;
@@ -126,7 +131,7 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         } else {
             int len = snprintf(NULL, 0, "%s_%ld", get_type(expr_literal->data_type), info->global_literals.size) + 1;
             literal->label = malloc(len);
-            snprintf(literal->label, len, "%s_%ld", get_type(expr_literal->data_type), expr_literal->value);
+            snprintf(literal->label, len, "%s_%ld", get_type(expr_literal->data_type), info->global_literals.size);
 
             da_append(info->global_literals, literal);
         }
@@ -147,12 +152,63 @@ void codegen_analyze(Expr** ast, ASTInfo* info)
     }
 }
 
-int main()
+int run_command(char* const argv[])
 {
-    char* file_path = "examples/printf.en";
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        perror("fork failed");
+        return -1;
+    } else if (pid == 0) {
+        // Child process
+        execvp(argv[0], argv);
+        // If we reach here, execvp failed
+        perror("execvp failed");
+        exit(127);
+    } else {
+        // Parent process
+        int status;
+        wait(&status);
+        return WEXITSTATUS(status);
+    }
+}
+
+int main(int argc, char** argv)
+{
+    if (argc < 2) {
+        printf("ERROR: No .en input file\n");
+        return EXIT_FAILURE;
+    }
+
+    char* full_path = argv[1];
+
+    char* start = strstr(full_path, ".en");
+    if (start == NULL) {
+        printf("ERROR: No .en input file\n");
+        return EXIT_FAILURE;
+    }
+
+    char* filename_start = strrchr(full_path, '/');
+    if (filename_start == NULL) {
+        filename_start = full_path; // No slash found
+    } else {
+        filename_start++; // Skip the slash
+    }
+
+    char* filename = strdup(filename_start);
+    if (filename == NULL) {
+        printf("ERROR: Memory allocation failed\n");
+        return EXIT_FAILURE;
+    }
+
+    size_t len = strlen(filename);
+    if (len >= 3) {
+        filename[len - 3] = '\0';
+    }
+
     LexerContext lc = { 0 };
 
-    if (!lex_set_current_file(&lc, file_path)) {
+    if (!lex_set_current_file(&lc, full_path)) {
         printf("Error: could not open file\n");
         return EXIT_FAILURE;
     }
@@ -169,10 +225,7 @@ int main()
 
     // 2. Generate assembly
     generate_program(ast, &info, &out);
-
-    FILE* fptr = fopen("out/printf.asm", "w");
-    fputs(out.msg, fptr);
-    fclose(fptr);
+    generate_binary(filename, out.msg);
 
     return EXIT_SUCCESS;
 }

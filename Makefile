@@ -14,4 +14,5 @@ build/%.o: src/%.c
 .PHONY: clean
 clean:
 	rm -rf build/
+	rm -rf out/
 	rm $(TARGET)

@@ -170,16 +170,23 @@ Expr* parse_literal(LexerContext* lc)
         return NULL;
     }
 
-    switch (lc->token.data_type) {
-    case TYPE_INT16:
-        literal->value.as_int16 = lc->token.value.as_int16;
-        literal->data_type = TYPE_INT16;
-        break;
-    case TYPE_STRING:
-        literal->value.as_string = lc->token.value.as_string;
-        literal->data_type = TYPE_STRING;
-        break;
-    }
+    /* switch (lc->token.data_type) { */
+    /* case TYPE_DOUBLE: */
+    /*     literal->value.as_double = lc->token.value.as_double; */
+    /*     literal->data_type = TYPE_DOUBLE; */
+    /*     break; */
+    /* case TYPE_INT32: */
+    /*     literal->value.as_int16 = lc->token.value.as_int16; */
+    /*     literal->data_type = TYPE_INT16; */
+    /*     break; */
+    /* case TYPE_STRING: */
+    /*     literal->value.as_string = lc->token.value.as_string; */
+    /*     literal->data_type = TYPE_STRING; */
+    /*     break; */
+    /* } */
+
+    literal->value = lc->token.value;
+    literal->data_type = lc->token.data_type;
 
     Expr* literal_expr = malloc(sizeof *literal_expr);
     if (literal_expr == NULL) {

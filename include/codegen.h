@@ -47,8 +47,10 @@ typedef struct {
 } ASTInfo;
 
 char* get_type(DataType type);
+int run_command(char* const argv[]);
 
 // This should generate then store the source code in out
 void generate_program(Expr** ast, ASTInfo* info, StringBuilder* out);
+int generate_binary(char* filename, char* out);
 
 #endif

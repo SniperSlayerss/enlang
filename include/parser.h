@@ -53,14 +53,6 @@ typedef struct {
     Expr** args;
 } ASTFuncCall;
 
-typedef union {
-    char as_char;
-    char* as_string;
-    int as_int;
-    int16_t as_int16;
-    float as_float;
-} LiteralValues;
-
 // TODO: Allow over literal types
 typedef struct {
     LiteralValues value;

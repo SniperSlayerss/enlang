@@ -2,6 +2,7 @@ external printf.
 external exit.
 
 run main:
-    printf("Hello %s %s %s%s%s\n", "world!", "Look at this", "1..", "2...", "3...."),
-    printf("BOO!!!\n"),
-    exit(0).
+    printf("Hello %s\n", "world!"),
+    printf("int32 %d!!!\n", 1337),
+    printf("double %d!!!\n", 12.34),
+    exit(42).
