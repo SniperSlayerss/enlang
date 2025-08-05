@@ -152,6 +152,16 @@ void codegen_analyze(Expr** ast, ASTInfo* info)
     }
 }
 
+bool is_external_call(ASTInfo* info, const char* identifier)
+{
+    for (int i = 0; i < info->externals.size; i++) {
+        if (strcmp(identifier, info->externals.data[i]) == 0) {
+	    return true;
+	}
+    }
+    return false;
+}
+
 int run_command(char* const argv[])
 {
     pid_t pid = fork();
@@ -224,8 +234,8 @@ int main(int argc, char** argv)
     sb_init(&out);
 
     // 2. Generate assembly
-    generate_program(ast, &info, &out);
-    generate_binary(filename, out.msg);
+    generate_program(&out, &info, ast);
+    generate_binary(out.msg, filename);
 
     return EXIT_SUCCESS;
 }

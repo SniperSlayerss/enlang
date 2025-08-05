@@ -48,9 +48,10 @@ typedef struct {
 
 char* get_type(DataType type);
 int run_command(char* const argv[]);
+bool is_external_call(ASTInfo* info, const char* identifier);
 
 // This should generate then store the source code in out
-void generate_program(Expr** ast, ASTInfo* info, StringBuilder* out);
-int generate_binary(char* filename, char* out);
+void generate_program(StringBuilder* out, ASTInfo* info, Expr** ast);
+int generate_binary(char* out, char* filename);
 
 #endif

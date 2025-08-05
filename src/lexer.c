@@ -170,7 +170,7 @@ bool lex_get_next_token(LexerContext* lc)
             is_literal = true;
             sb_append_char(&sb, lc->current_char);
 
-            has_decimal = lc->current_char == '.';
+            has_decimal = lc->current_char == '.' || has_decimal;
 
             if (!get_next_char(lc)) {
                 token.type = TOKEN_EOF;
