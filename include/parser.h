@@ -51,6 +51,7 @@ typedef struct {
 typedef struct {
     const char* identifier;
     Expr** args;
+    size_t num_of_args;
 } ASTFuncCall;
 
 // TODO: Allow over literal types
