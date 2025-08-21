@@ -39,6 +39,11 @@ const char* arg_registers_floating[] = {
 #define MAX_REG_ARGS_FLOAT (sizeof(arg_registers_floating) / sizeof(arg_registers_floating[0]))
 
 typedef struct {
+    char* literal_label;
+    DataType literal_type;
+} CodegenLiteral;
+
+typedef struct {
     ASTInfo* info;
 
     // Global
@@ -47,11 +52,11 @@ typedef struct {
     // Function scope
     ASTFuncDef* current_func;
     size_t num_of_func_lit;
+    size_t num_of_stack_args;
     bool contains_external;
 
     // Literal scope
-    char* current_literal_label;
-    DataType current_literal_type;
+    CodegenLiteral* current_literal;
 } ASTContext;
 
 void emit_notes(StringBuilder* out, ASTInfo* info)
@@ -126,32 +131,33 @@ void emit_externals(StringBuilder* out, ASTInfo* info)
     }
 }
 
-void emit_arg(StringBuilder* out, ASTContext* context, char* literal_label, int arg)
+void emit_arg(StringBuilder* out, ASTContext* context, CodegenLiteral* literal, int arg)
 {
 
     char* label;
-    if (context->current_literal_type != TYPE_STRING) { // TODO: handle this better? does this make sense for all literals?
-        int len = snprintf(NULL, 0, "[%s]", literal_label) + 1;
+    if (literal->literal_type != TYPE_STRING) { // TODO: handle this better? does this make sense for all literals?
+        int len = snprintf(NULL, 0, "[%s]", literal->literal_label) + 1;
         label = malloc(len);
-        snprintf(label, len, "[%s]", literal_label);
+        snprintf(label, len, "[%s]", literal->literal_label);
     } else {
-        label = literal_label;
+        label = literal->literal_label;
     }
 
-    // TODO FIX, xmm registers should have there own counter this is then used as well when setting rax
-    switch (context->current_literal_type) {
+    switch (literal->literal_type) {
     case TYPE_DOUBLE:
         if (arg < MAX_REG_ARGS_FLOAT) {
             sb_appendf(out, "    movsd %s, %s\n", arg_registers_floating[arg], label);
         } else {
-            // TODO: handle stack allocation
+            sb_appendf(out, "    push qword %s\n", label);
+            context->num_of_stack_args++;
         }
         break;
     case TYPE_STRING:
         if (arg < MAX_REG_ARGS_64) {
             sb_appendf(out, "    mov %s, %s\n", arg_registers_64[arg], label);
         } else {
-            // TODO: handle stack allocation
+            sb_appendf(out, "    push %s\n", label);
+            context->num_of_stack_args++;
         }
         break;
 
@@ -159,9 +165,8 @@ void emit_arg(StringBuilder* out, ASTContext* context, char* literal_label, int 
         if (arg < MAX_REG_ARGS_32) {
             sb_appendf(out, "    mov %s, %s\n", arg_registers_32[arg], label);
         } else {
-            // TODO: handle stack allocation
-            // Add tracker to ASTContext
-            // sb_appendf(out, "    push %s\n", label);
+            sb_appendf(out, "    push qword %s\n", label);
+            context->num_of_stack_args++;
         }
         break;
     }
@@ -194,6 +199,8 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         sb_appendf(out, "%s:\n", expr_func_def->name);
 
         context->current_func = expr_func_def;
+        context->num_of_func_lit = 0;
+	context->contains_external = false;
 
         StringBuilder func_def_out = { 0 };
         sb_init(&func_def_out);
@@ -218,6 +225,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         emit_epilogue(out);
 
         break;
+
     case EXPR_VAR_ASSIGN: // Has Expr* expression
         ASTVarAssign* expr_var_assign = expr->as.var_assign;
         // TODO
@@ -226,52 +234,71 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         traverse_ast(out, context, expr_var_assign->assign_expr);
         break;
+
     case EXPR_FUNC_CALL:
         ASTFuncCall* expr_func_call = expr->as.func_call;
+        context->num_of_stack_args = 0;
+
         if (expr_func_call == NULL)
             break;
 
         if (context->current_func != NULL) {
-            // do something
+            // TODO: do something
         }
 
         int normal_count = 0, floating_count = 0;
-        for (int i = 0; expr_func_call->args[i] != NULL; i++) {
+
+        // TODO: remove this extra loop
+        da_new(CodegenLiteral*, normal_args);
+        da_new(CodegenLiteral*, floating_args);
+        for (int i = 0; i < expr_func_call->num_of_args; i++) {
             traverse_ast(out, context, expr->as.func_call->args[i]);
-            switch (context->current_literal_type) {
+            switch (context->current_literal->literal_type) {
             case TYPE_DOUBLE:
-                emit_arg(out, context, context->current_literal_label, floating_count);
                 floating_count++;
+                da_append(floating_args, context->current_literal);
                 break;
             case TYPE_INT32:
             case TYPE_STRING:
-                emit_arg(out, context, context->current_literal_label, normal_count);
                 normal_count++;
+                da_append(normal_args, context->current_literal);
                 break;
             }
+	}
+
+        for (int i = normal_args.size - 1; i >= 0; i--) {
+            emit_arg(out, context, normal_args.data[i], i);
+        }
+
+        for (int i = floating_args.size - 1; i >= 0; i--) {
+            emit_arg(out, context, floating_args.data[i], i);
         }
 
         if (floating_count == 0) {
             sb_append(out, "    xor rax, rax\n");
         } else {
-            sb_appendf(out, "    mov rax, %d\n", floating_count);
+            sb_appendf(out, "    mov rax, %d\n", (MAX_REG_ARGS_FLOAT <= floating_count) ? MAX_REG_ARGS_FLOAT : floating_count);
         }
         sb_appendf(out, "    call %s\n", expr_func_call->identifier);
+        sb_appendf(out, "    add rsp, %d\n", context->num_of_stack_args * 8);
         sb_append_char(out, '\n');
 
         if (is_external_call(context->info, expr_func_call->identifier))
             context->contains_external = true;
 
         break;
+
     case EXPR_EXTERNAL:
         break;
+
     case EXPR_LITERAL:
         ASTLiteral* expr_literal = expr->as.literal;
 
         if (expr_literal == NULL)
             break;
 
-        context->current_literal_type = expr_literal->data_type;
+        CodegenLiteral* literal = malloc(sizeof *literal);
+        literal->literal_type = expr_literal->data_type;
 
         // Dynamically name labels
         if (context->current_func != NULL) {
@@ -279,16 +306,18 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
             char* label = malloc(len);
             snprintf(label, len, "%s_%s_%ld", context->current_func->name, get_type(expr_literal->data_type), context->num_of_func_lit);
 
+	    literal->literal_label = label;
             context->num_of_func_lit++;
-            context->current_literal_label = label;
         } else {
             int len = snprintf(NULL, 0, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit) + 1;
             char* label = malloc(len);
             snprintf(label, len, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit);
 
+	    literal->literal_label = label;
             context->num_of_global_lit++;
-            context->current_literal_label = label;
         }
+
+        context->current_literal = literal;
         break;
     case EXPR_TYPE:
     default:

@@ -97,7 +97,6 @@ Expr* parse_func_call(LexerContext* lc, const char* identifier)
             lex_get_next_token(lc);
         }
     }
-    da_append(args, NULL);
 
     lex_get_next_token(lc);
     if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
@@ -108,6 +107,7 @@ Expr* parse_func_call(LexerContext* lc, const char* identifier)
     ASTFuncCall* func_call = malloc(sizeof *func_call);
     func_call->identifier = identifier;
     func_call->args = args.data;
+    func_call->num_of_args = args.size;
 
     Expr* func_call_expr = malloc(sizeof *func_call_expr);
     func_call_expr->type = EXPR_FUNC_CALL;
