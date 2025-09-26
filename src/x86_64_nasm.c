@@ -57,7 +57,7 @@ typedef struct {
 
     // Literal scope
     CodegenLiteral* current_literal;
-} ASTContext;
+} ASTContext; // TODO: Consider moving to codegen or parser
 
 void emit_notes(StringBuilder* out, ASTInfo* info)
 {
@@ -170,6 +170,9 @@ void emit_arg(StringBuilder* out, ASTContext* context, CodegenLiteral* literal, 
         }
         break;
     }
+
+    if (label != NULL)
+        free(label);
 }
 
 void emit_prologue(StringBuilder* out)
@@ -200,13 +203,13 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         context->current_func = expr_func_def;
         context->num_of_func_lit = 0;
-	context->contains_external = false;
+        context->contains_external = false;
 
         StringBuilder func_def_out = { 0 };
         sb_init(&func_def_out);
 
         if (expr->as.func_def->body != NULL) {
-            for (int i = 0; expr_func_def->body[i] != NULL; i++) {
+            for (int i = 0; i < expr_func_def->body_count; i++) {
                 traverse_ast(&func_def_out, context, expr_func_def->body[i]);
             }
         }
@@ -221,6 +224,8 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         sb_append_char(out, '\n');
 
         sb_append(out, func_def_out.msg);
+
+        sb_free_contents(&func_def_out);
 
         emit_epilogue(out);
 
@@ -251,7 +256,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         // TODO: remove this extra loop
         da_new(CodegenLiteral*, normal_args);
         da_new(CodegenLiteral*, floating_args);
-        for (int i = 0; i < expr_func_call->num_of_args; i++) {
+        for (int i = 0; i < expr_func_call->arg_count; i++) {
             traverse_ast(out, context, expr->as.func_call->args[i]);
             switch (context->current_literal->literal_type) {
             case TYPE_DOUBLE:
@@ -264,7 +269,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
                 da_append(normal_args, context->current_literal);
                 break;
             }
-	}
+        }
 
         for (int i = normal_args.size - 1; i >= 0; i--) {
             emit_arg(out, context, normal_args.data[i], i);
@@ -306,14 +311,14 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
             char* label = malloc(len);
             snprintf(label, len, "%s_%s_%ld", context->current_func->name, get_type(expr_literal->data_type), context->num_of_func_lit);
 
-	    literal->literal_label = label;
+            literal->literal_label = label;
             context->num_of_func_lit++;
         } else {
             int len = snprintf(NULL, 0, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit) + 1;
             char* label = malloc(len);
             snprintf(label, len, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit);
 
-	    literal->literal_label = label;
+            literal->literal_label = label;
             context->num_of_global_lit++;
         }
 
@@ -325,17 +330,25 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
     }
 }
 
-void emit_ast(StringBuilder* out, ASTInfo* info, Expr** ast)
+void free_ast_context(ASTContext* context)
 {
-    sb_append_char(out, '\n');
-    ASTContext context = { 0 };
-    context.info = info;
-    for (int i = 0; ast[i] != NULL; i++) {
-        traverse_ast(out, &context, ast[i]);
-    }
+    if (context->current_literal != NULL)
+        free(context->current_literal);
 }
 
-void emit_program(StringBuilder* out, ASTInfo* info, Expr** ast)
+void emit_ast(StringBuilder* out, ASTInfo* info, AST* ast)
+{
+    sb_append_char(out, '\n');
+    ASTContext context = { 0 }; // TODO: Consider moving to codegen or parser
+    context.info = info;
+    for (int i = 0; i < ast->exprs_count; i++) {
+        traverse_ast(out, &context, ast->exprs[i]);
+    }
+
+    free_ast_context(&context); // TODO: Consider moving to codegen or parser
+}
+
+void emit_program(StringBuilder* out, ASTInfo* info, AST* ast)
 {
     emit_externals(out, info);
     emit_notes(out, info);
@@ -344,7 +357,7 @@ void emit_program(StringBuilder* out, ASTInfo* info, Expr** ast)
     emit_ast(out, info, ast);
 }
 
-void generate_program(StringBuilder* out, ASTInfo* info, Expr** ast)
+void generate_program(StringBuilder* out, ASTInfo* info, AST* ast)
 {
     emit_program(out, info, ast);
     // printf("\n%s", out->msg);

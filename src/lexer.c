@@ -54,6 +54,7 @@ bool lex_get_next_token(LexerContext* lc)
             sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
+                sb_free_contents(&sb);
                 token.type = TOKEN_EOF;
                 lc->token = token;
                 return true;
@@ -65,6 +66,7 @@ bool lex_get_next_token(LexerContext* lc)
         token.data_type = TYPE_STRING;
         token.value.as_string = sb.msg;
         lc->token = token;
+
         return true;
     }
 
@@ -77,6 +79,7 @@ bool lex_get_next_token(LexerContext* lc)
             sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
+                sb_free_contents(&sb);
                 token.type = TOKEN_EOF;
                 lc->token = token;
                 return true;
@@ -173,6 +176,7 @@ bool lex_get_next_token(LexerContext* lc)
             has_decimal = lc->current_char == '.' || has_decimal;
 
             if (!get_next_char(lc)) {
+                sb_free_contents(&sb);
                 token.type = TOKEN_EOF;
                 lc->token = token;
                 return false;

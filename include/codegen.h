@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct {
     Literal** data;
-    size_t size, cap;
+    int size, cap;
 } LiteralArray;
 
 typedef struct {
@@ -20,7 +20,7 @@ typedef struct {
 
 typedef struct {
     FuncCall** data;
-    size_t size, cap;
+    int size, cap;
 } FuncCallArray;
 
 typedef struct {
@@ -31,12 +31,12 @@ typedef struct {
 
 typedef struct {
     FuncDef** data;
-    size_t size, cap;
+    int size, cap;
 } FuncDefArray;
 
 typedef struct {
     const char** data;
-    size_t size, cap;
+    int size, cap;
 } ExternalArray;
 
 typedef struct {
@@ -51,7 +51,7 @@ int run_command(char* const argv[]);
 bool is_external_call(ASTInfo* info, const char* identifier);
 
 // This should generate then store the source code in out
-void generate_program(StringBuilder* out, ASTInfo* info, Expr** ast);
+void generate_program(StringBuilder* out, ASTInfo* info, AST* ast);
 int generate_binary(char* out, char* filename);
 
 #endif
