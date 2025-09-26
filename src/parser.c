@@ -7,20 +7,22 @@ Expr* parse_main(LexerContext* lc, bool is_func_body);
 Expr* parse_expression(LexerContext* lc);
 Expr* parse_literal(LexerContext* lc);
 
+// TODO if the parsing crashes handle cleanup
+// TODO ensure consistency with names
 // TODO currently not using, implement types...
 Expr* parse_type(LexerContext* lc)
 {
-    ASTArgument* arg = malloc(sizeof *arg);
+    ASTArgument* arg = malloc(sizeof(*arg));
 
     if (lc->token.type == TOKEN_ELLIPSIS) {
-        ASTType* type = malloc(sizeof *type);
+        ASTType* type = malloc(sizeof(*type));
         type->is_constant = false;
         type->is_variadic = true;
         type->pointer_depth = 0;
 
         arg->type = type;
 
-        Expr* arg_expr = malloc(sizeof *arg_expr);
+        Expr* arg_expr = malloc(sizeof(*arg_expr));
         arg_expr->type = EXPR_TYPE;
         arg_expr->as.arg = arg;
 
@@ -33,7 +35,7 @@ Expr* parse_type(LexerContext* lc)
     LEX_EXPECT_NEXT(lc, TOKEN_AS); // Eat identifier'
     LEX_EXPECT_NEXT(lc, TOKEN_A); // Eat 'as'
 
-    ASTType* type = malloc(sizeof *type);
+    ASTType* type = malloc(sizeof(*type));
     type->is_constant = false;
     type->is_variadic = false;
     type->pointer_depth = 0;
@@ -56,7 +58,7 @@ Expr* parse_type(LexerContext* lc)
 
     arg->type = type;
 
-    Expr* arg_expr = malloc(sizeof *arg_expr);
+    Expr* arg_expr = malloc(sizeof(*arg_expr));
     arg_expr->type = EXPR_TYPE;
     arg_expr->as.arg = arg;
 
@@ -71,10 +73,10 @@ Expr* parse_external(LexerContext* lc)
 
     LEX_EXPECT_NEXT(lc, TOKEN_PERIOD); // Eat identifier
 
-    ASTExtrnDef* extrn_def = malloc(sizeof *extrn_def);
+    ASTExtrnDef* extrn_def = malloc(sizeof(*extrn_def));
     extrn_def->identifier = identifier;
 
-    Expr* extrn_expr = malloc(sizeof *extrn_expr);
+    Expr* extrn_expr = malloc(sizeof(*extrn_expr));
     extrn_expr->type = EXPR_EXTERNAL;
     extrn_expr->as.extrn_def = extrn_def;
 
@@ -100,16 +102,16 @@ Expr* parse_func_call(LexerContext* lc, const char* identifier)
 
     lex_get_next_token(lc);
     if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
-	// TODO: add comma to error message, or only allow period at end of function def
+        // TODO: add comma to error message, or only allow period at end of function def
         LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
     }
 
-    ASTFuncCall* func_call = malloc(sizeof *func_call);
+    ASTFuncCall* func_call = malloc(sizeof(*func_call));
     func_call->identifier = identifier;
     func_call->args = args.data;
-    func_call->num_of_args = args.size;
+    func_call->arg_count = args.size;
 
-    Expr* func_call_expr = malloc(sizeof *func_call_expr);
+    Expr* func_call_expr = malloc(sizeof(*func_call_expr));
     func_call_expr->type = EXPR_FUNC_CALL;
     func_call_expr->as.func_call = func_call;
 
@@ -138,9 +140,8 @@ Expr* parse_func_def(LexerContext* lc)
             LEX_EXPECT(lc, TOKEN_PERIOD);
         }
     }
-    da_append(body, NULL);
 
-    ASTFuncDef* func_def = malloc(sizeof *func_def);
+    ASTFuncDef* func_def = malloc(sizeof(*func_def));
     if (func_def == NULL) {
         printf("ERROR: Malloc for ASTFuncDef* failed");
         return NULL;
@@ -149,9 +150,10 @@ Expr* parse_func_def(LexerContext* lc)
     func_def->params = NULL; // TODO accept parameters
     func_def->param_count = 0;
     func_def->body = body.data;
+    func_def->body_count = body.size;
     func_def->is_entry_point = is_entry_point;
 
-    Expr* func_def_expr = malloc(sizeof *func_def_expr);
+    Expr* func_def_expr = malloc(sizeof(*func_def_expr));
     if (func_def_expr == NULL) {
         printf("ERROR: Malloc for ASTFuncDef expr failed");
         return NULL;
@@ -164,7 +166,7 @@ Expr* parse_func_def(LexerContext* lc)
 
 Expr* parse_literal(LexerContext* lc)
 {
-    ASTLiteral* literal = malloc(sizeof *literal);
+    ASTLiteral* literal = malloc(sizeof(*literal));
     if (literal == NULL) {
         printf("ERROR: Malloc for ASTLiteral* failed");
         return NULL;
@@ -188,7 +190,7 @@ Expr* parse_literal(LexerContext* lc)
     literal->value = lc->token.value;
     literal->data_type = lc->token.data_type;
 
-    Expr* literal_expr = malloc(sizeof *literal_expr);
+    Expr* literal_expr = malloc(sizeof(*literal_expr));
     if (literal_expr == NULL) {
         printf("ERROR: Malloc for ASTLiteral Expr failed");
         return NULL;
@@ -218,18 +220,18 @@ Expr* parse_var_assign(LexerContext* lc)
     LEX_EXPECT_NEXT(lc, TOKEN_TYPE); // Eat 'as'
 
     lex_get_next_token(lc);
-    if (lc->token.type != TOKEN_PERIOD || lc->token.type != TOKEN_COMMA) {
+    if (lc->token.type != TOKEN_PERIOD && lc->token.type != TOKEN_COMMA) {
         LEX_EXPECT(lc, TOKEN_PERIOD);
     } // Eat data type
 
-    ASTVarAssign* var_assign = malloc(sizeof *var_assign);
+    ASTVarAssign* var_assign = malloc(sizeof(*var_assign));
     if (var_assign == NULL) {
         printf("ERROR: Malloc for ASTVarAssign* failed");
 
         return NULL;
     }
 
-    ASTType* type = malloc(sizeof *type);
+    ASTType* type = malloc(sizeof(*type));
     type->data_type = TYPE_INT16;
     type->pointer_depth = 0;
     type->is_constant = false;
@@ -238,7 +240,7 @@ Expr* parse_var_assign(LexerContext* lc)
     var_assign->identifier = identifier;
     var_assign->assign_expr = assign_expr;
 
-    Expr* var_expr = malloc(sizeof *var_expr);
+    Expr* var_expr = malloc(sizeof(*var_expr));
     if (var_expr == NULL) {
         printf("ERROR: Malloc for VarAssign Expr failed");
         return NULL;
@@ -295,16 +297,119 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
     lex_get_next_token(lc);
 }
 
-Expr** create_ast(LexerContext* lc)
+AST* create_ast(LexerContext* lc)
 {
     lex_get_next_token(lc);
 
-    da_new(Expr*, ast);
+    da_new(Expr*, ast_arr);
     while (lc->token.type != TOKEN_EOF) {
-        da_append(ast, parse_main(lc, false));
+        da_append(ast_arr, parse_main(lc, false));
         lex_get_next_token(lc);
     }
-    da_append(ast, NULL);
 
-    return ast.data;
+    AST* ast = malloc(sizeof(*ast));
+    ast->exprs = ast_arr.data;
+    ast->exprs_count = ast_arr.size;
+
+    return ast;
+}
+
+void free_ast_recurse(Expr* expr)
+{
+    if (expr == NULL)
+        return;
+
+    switch (expr->type) {
+    case EXPR_FUNC_DEF: // Has Expr** body
+        ASTFuncDef* def = expr->as.func_def;
+        if (def == NULL)
+            break;
+
+        if (def->name != NULL)
+            free(def->name);
+
+        if (def->body != NULL) {
+            for (int i = 0; i < def->param_count; i++) {
+                ASTArgument* arg = def->params[i];
+                if (arg != NULL) {
+                    if (arg->arg != NULL)
+                        free(arg->arg);
+                    if (arg->type != NULL)
+                        free(arg->type);
+                }
+            }
+        }
+
+        if (def->body != NULL) {
+            for (int i = 0; i < def->body_count; i++) {
+                free_ast_recurse(def->body[i]);
+            }
+        }
+
+        free(def);
+        break;
+
+    case EXPR_VAR_ASSIGN: // Has Expr* expression
+        ASTVarAssign* assign = expr->as.var_assign; // TODO
+        if (assign == NULL)
+            break;
+
+        if (assign->identifier != NULL)
+            free(assign->identifier);
+
+        if (assign->type != NULL)
+            free(assign->type);
+
+        if (assign->assign_expr != NULL)
+            free_ast_recurse(expr->as.var_assign->assign_expr);
+
+        free(expr->as.var_assign);
+        break;
+
+    case EXPR_FUNC_CALL:
+        ASTFuncCall* call = expr->as.func_call;
+        if (call == NULL)
+            break;
+
+        if (call->identifier != NULL)
+            free(call->identifier);
+
+        for (int i = 0; i < call->arg_count; i++) {
+            free_ast_recurse(call->args[i]);
+        }
+        free(call);
+        break;
+
+    case EXPR_EXTERNAL:
+        ASTExtrnDef* extrn = expr->as.extrn_def;
+        if (extrn == NULL)
+            break;
+
+        if (extrn->identifier != NULL)
+            free(extrn->identifier);
+        break;
+
+    case EXPR_LITERAL:
+        ASTLiteral* lit = expr->as.literal;
+        if (lit == NULL)
+            break;
+
+        if (lit->data_type != NULL) {
+            if (lit->value.as_string != NULL)
+                free(lit->value.as_string);
+        }
+
+        free(expr->as.literal);
+        break;
+    case EXPR_TYPE:
+    default:
+        break;
+    }
+}
+
+void free_ast(AST* ast)
+{
+    for (int i = 0; i < ast->exprs_count; i++) {
+        free_ast_recurse(ast->exprs[i]);
+    }
 }

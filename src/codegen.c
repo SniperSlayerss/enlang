@@ -59,7 +59,7 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         if (expr_func_def == NULL)
             break;
 
-        FuncDef* func_def = malloc(sizeof *func_def);
+        FuncDef* func_def = malloc(sizeof(*func_def));
         func_def->label = (char*)expr->as.func_def->name;
 
         if (expr_func_def->is_entry_point)
@@ -88,7 +88,7 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         if (expr_func_call == NULL)
             break;
 
-        FuncCall* func_call = malloc(sizeof *func_call);
+        FuncCall* func_call = malloc(sizeof(*func_call));
         func_call->label = (char*)expr_func_call->identifier;
 
         if (current_func != NULL) {
@@ -113,7 +113,7 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
         if (expr_literal == NULL)
             break;
 
-        Literal* literal = malloc(sizeof *literal);
+        Literal* literal = malloc(sizeof(*literal));
 
         literal->type = expr_literal->data_type;
 
@@ -142,13 +142,13 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
     }
 }
 
-void codegen_analyze(Expr** ast, ASTInfo* info)
+void codegen_analyze(AST* ast, ASTInfo* info)
 {
     da_init(info->func_defs);
     da_init(info->externals);
     da_init(info->global_literals);
-    for (int i = 0; ast[i] != NULL; i++) {
-        codegen_traverse_expr(ast[i], info, NULL);
+    for (int i = 0; i <= ast->exprs_count; i++) {
+        codegen_traverse_expr(ast->exprs[i], info, NULL);
     }
 }
 
@@ -156,8 +156,8 @@ bool is_external_call(ASTInfo* info, const char* identifier)
 {
     for (int i = 0; i < info->externals.size; i++) {
         if (strcmp(identifier, info->externals.data[i]) == 0) {
-	    return true;
-	}
+            return true;
+        }
     }
     return false;
 }
@@ -181,6 +181,23 @@ int run_command(char* const argv[])
         wait(&status);
         return WEXITSTATUS(status);
     }
+}
+
+void free_ast_info(ASTInfo* ast_info)
+{
+    if (ast_info->externals.data != NULL)
+        da_free(ast_info->externals);
+    if (ast_info->func_defs.data != NULL) {
+        for (int i = 0; i < ast_info->func_defs.size; i++) {
+            if (ast_info->func_defs.data[i]->func_call_array.data != NULL)
+                da_free(ast_info->func_defs.data[i]->func_call_array);
+            if (ast_info->func_defs.data[i]->literal_array.data != NULL)
+                da_free(ast_info->func_defs.data[i]->literal_array);
+        }
+        da_free(ast_info->func_defs);
+    }
+    if (ast_info->global_literals.data != NULL)
+        da_free(ast_info->global_literals);
 }
 
 int main(int argc, char** argv)
@@ -223,7 +240,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    Expr** ast = create_ast(&lc);
+    AST* ast = create_ast(&lc);
 
     // Multiple pass approach
     // 1. Get information about AST
@@ -236,6 +253,10 @@ int main(int argc, char** argv)
     // 2. Generate assembly
     generate_program(&out, &info, ast);
     generate_binary(out.msg, filename);
+
+    sb_free_contents(&out);
+    free_ast_info(&info);
+    free_ast(ast);
 
     return EXIT_SUCCESS;
 }
