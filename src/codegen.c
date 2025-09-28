@@ -123,15 +123,15 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, FuncDef* current_func)
 
         // Dynamically name labels
         if (current_func != NULL) {
-            int len = snprintf(NULL, 0, "%s_%s_%ld", current_func->label, get_type(expr_literal->data_type), current_func->literal_array.size) + 1;
+            int len = snprintf(NULL, 0, "%s_%s_%d", current_func->label, get_type(expr_literal->data_type), current_func->literal_array.size) + 1;
             literal->label = malloc(len);
-            snprintf(literal->label, len, "%s_%s_%ld", current_func->label, get_type(expr_literal->data_type), current_func->literal_array.size);
+            snprintf(literal->label, len, "%s_%s_%d", current_func->label, get_type(expr_literal->data_type), current_func->literal_array.size);
 
             da_append(current_func->literal_array, literal);
         } else {
-            int len = snprintf(NULL, 0, "%s_%ld", get_type(expr_literal->data_type), info->global_literals.size) + 1;
+            int len = snprintf(NULL, 0, "%s_%d", get_type(expr_literal->data_type), info->global_literals.size) + 1;
             literal->label = malloc(len);
-            snprintf(literal->label, len, "%s_%ld", get_type(expr_literal->data_type), info->global_literals.size);
+            snprintf(literal->label, len, "%s_%d", get_type(expr_literal->data_type), info->global_literals.size);
 
             da_append(info->global_literals, literal);
         }
