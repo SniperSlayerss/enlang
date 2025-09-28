@@ -55,9 +55,6 @@ typedef struct {
 typedef struct {
     const char* identifier;
     Expr** args;
-
-if (call->identifier != NULL)
-    free(call->identifier);
     int arg_count;
 } ASTFuncCall;
 
