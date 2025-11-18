@@ -1,8 +1,8 @@
 CC := cc
-CFLAGS := -Wall -Wextra -O2 -Iinclude -g
+CFLAGS := -Wall -Wextra -O2 -Iinclude -ggdb
 SRC :=  src/codegen.c src/parser.c src/lexer.c src/x86_64_nasm.c
 OBJ := $(SRC:src/%.c=build/%.o)
-TARGET := enlang 
+TARGET := build/enlang
 
 $(TARGET) :	$(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
