@@ -1,7 +1,5 @@
 #ifndef UTILS_H
 #define UTILS_H
-#include <ctype.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,16 +71,16 @@ static inline void sb_init(StringBuilder* sb) {
 
 static inline void sb_reserve(StringBuilder* sb, size_t min_capacity) {
     if (sb->capacity >= min_capacity) return;
-    
+
     size_t new_cap = sb->capacity ? sb->capacity * 2 : 8;
     while (new_cap < min_capacity) new_cap *= 2;
-    
+
     char* new_msg = realloc(sb->msg, new_cap);
     if (!new_msg) {
         fprintf(stderr, "StringBuilder: Memory allocation failed\n");
         exit(EXIT_FAILURE);
     }
-    
+
     sb->msg = new_msg;
     sb->capacity = new_cap;
 }
@@ -97,14 +95,14 @@ static inline void sb_append_char(StringBuilder* sb, char c) {
 
 static inline void sb_append(StringBuilder* sb, const char* str) {
     if (!str) return;
-    
+
     size_t str_len = strlen(str);
     if (str_len == 0) return;
-    
+
     if (sb->size + str_len + 1 > sb->capacity) {
         sb_reserve(sb, sb->size + str_len + 1);
     }
-    
+
     memcpy(&sb->msg[sb->size], str, str_len);
     sb->size += str_len;
     sb->msg[sb->size] = '\0';
@@ -113,31 +111,32 @@ static inline void sb_append(StringBuilder* sb, const char* str) {
 static inline void sb_appendf(StringBuilder* sb, const char* format, ...) {
     va_list args;
     va_start(args, format);
-    
+
     // First, calculate required size
     va_list args_copy;
     va_copy(args_copy, args);
     int len = vsnprintf(NULL, 0, format, args_copy);
     va_end(args_copy);
-    
+
     if (len < 0) {
         va_end(args);
         return; // encoding error
     }
-    
+
     // Reserve space
     if (sb->size + len + 1 > sb->capacity) {
         sb_reserve(sb, sb->size + len + 1);
     }
-    
+
     // Format into the buffer
     vsnprintf(&sb->msg[sb->size], len + 1, format, args);
     sb->size += len;
-    
+
     va_end(args);
 }
 
 static inline void sb_free_contents(StringBuilder* sb) {
+    if (!sb) return;
     free(sb->msg);
     sb->msg = NULL;
     sb->size = 0;
@@ -148,6 +147,37 @@ static inline void sb_free(StringBuilder* sb) {
     if (!sb) return;
     sb_free_contents(sb);
     free(sb);
+}
+
+static inline char* sb_take_string(StringBuilder* sb) {
+    if (!sb) return NULL;
+
+    char* result = sb->msg;
+
+    // Reset StringBuilder to empty state without freeing the string
+    sb->msg = NULL;
+    sb->size = 0;
+    sb->capacity = 0;
+
+    return result;
+}
+
+static inline char* sb_take_string_safe(StringBuilder* sb) {
+    if (!sb || !sb->msg) {
+        // Return empty string if StringBuilder is NULL or empty
+        char* empty = malloc(1);
+        if (empty) empty[0] = '\0';
+        return empty;
+    }
+
+    char* result = sb->msg;
+
+    // Reset StringBuilder to empty state
+    sb->msg = NULL;
+    sb->size = 0;
+    sb->capacity = 0;
+
+    return result;
 }
 
 #endif

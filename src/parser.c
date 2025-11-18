@@ -7,64 +7,6 @@ Expr* parse_main(LexerContext* lc, bool is_func_body);
 Expr* parse_expression(LexerContext* lc);
 Expr* parse_literal(LexerContext* lc);
 
-// TODO if the parsing crashes handle cleanup
-// TODO ensure consistency with names
-// TODO currently not using, implement types...
-Expr* parse_type(LexerContext* lc)
-{
-    ASTArgument* arg = malloc(sizeof(*arg));
-
-    if (lc->token.type == TOKEN_ELLIPSIS) {
-        ASTType* type = malloc(sizeof(*type));
-        type->is_constant = false;
-        type->is_variadic = true;
-        type->pointer_depth = 0;
-
-        arg->type = type;
-
-        Expr* arg_expr = malloc(sizeof(*arg_expr));
-        arg_expr->type = EXPR_TYPE;
-        arg_expr->as.arg = arg;
-
-        LEX_EXPECT_NEXT(lc, TOKEN_PERIOD); // Eat '...'
-        return arg_expr;
-    }
-
-    arg->arg = lc->token.value.as_string;
-
-    LEX_EXPECT_NEXT(lc, TOKEN_AS); // Eat identifier'
-    LEX_EXPECT_NEXT(lc, TOKEN_A); // Eat 'as'
-
-    ASTType* type = malloc(sizeof(*type));
-    type->is_constant = false;
-    type->is_variadic = false;
-    type->pointer_depth = 0;
-
-    lex_get_next_token(lc); // Eat 'a'
-    // while (LEX_EXPECT(lc, TOKEN_STAR) || LEX_EXPECT(lc, TOKEN_TYPE)) {
-    //     if (lc->token.type == TOKEN_TYPE) {
-    //         type->data_type = lc->token.value.data_type;
-    //     } else if (lc->token.type == TOKEN_STAR) {
-    //         type->pointer_depth++;
-    //     }
-    //
-    //     lex_get_next_token(lc);
-    // }
-
-    // if (!type->data_type && type->is_variadic == false) {
-    //     LOG_ERR("Expected data type to be associated with %s", arg->arg);
-    //     exit(1);
-    // }
-
-    arg->type = type;
-
-    Expr* arg_expr = malloc(sizeof(*arg_expr));
-    arg_expr->type = EXPR_TYPE;
-    arg_expr->as.arg = arg;
-
-    return arg_expr;
-}
-
 Expr* parse_external(LexerContext* lc)
 {
     LEX_EXPECT_NEXT(lc, TOKEN_IDENTIFIER); // Eat 'external'
@@ -293,7 +235,6 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
     if (lc->token.type == TOKEN_LITERAL)
         return parse_literal(lc);
 
-    printf("%d\n", lc->token.type);
     lex_get_next_token(lc);
 }
 
@@ -320,23 +261,21 @@ void free_ast_recurse(Expr* expr)
         return;
 
     switch (expr->type) {
-    case EXPR_FUNC_DEF: // Has Expr** body
+    case EXPR_FUNC_DEF:
         ASTFuncDef* def = expr->as.func_def;
         if (def == NULL)
             break;
 
-        if (def->name != NULL)
-            free(def->name);
+        free(def->name);
 
         if (def->body != NULL) {
             for (int i = 0; i < def->param_count; i++) {
                 ASTArgument* arg = def->params[i];
                 if (arg != NULL) {
-                    if (arg->arg != NULL)
-                        free(arg->arg);
-                    if (arg->type != NULL)
-                        free(arg->type);
+                    free(arg->arg);
+                    free(arg->type);
                 }
+                free(arg);
             }
         }
 
@@ -344,26 +283,26 @@ void free_ast_recurse(Expr* expr)
             for (int i = 0; i < def->body_count; i++) {
                 free_ast_recurse(def->body[i]);
             }
+            free(def->body);
         }
 
         free(def);
         break;
 
-    case EXPR_VAR_ASSIGN: // Has Expr* expression
-        ASTVarAssign* assign = expr->as.var_assign; // TODO
+    case EXPR_VAR_ASSIGN:
+        ASTVarAssign* assign = expr->as.var_assign;
         if (assign == NULL)
             break;
 
-        if (assign->identifier != NULL)
-            free(assign->identifier);
+        free(assign->identifier);
+        free(assign->type);
 
-        if (assign->type != NULL)
-            free(assign->type);
-
-        if (assign->assign_expr != NULL)
+        if (assign->assign_expr != NULL) {
             free_ast_recurse(expr->as.var_assign->assign_expr);
+            free(assign->assign_expr);
+        }
 
-        free(expr->as.var_assign);
+        free(assign);
         break;
 
     case EXPR_FUNC_CALL:
@@ -371,12 +310,16 @@ void free_ast_recurse(Expr* expr)
         if (call == NULL)
             break;
 
-        if (call->identifier != NULL)
-            free(call->identifier);
+        free(call->identifier);
 
-        for (int i = 0; i < call->arg_count; i++) {
-            free_ast_recurse(call->args[i]);
+        if (call->args != NULL) {
+            for (int i = 0; i < call->arg_count; i++) {
+                free_ast_recurse(call->args[i]);
+            }
+
+            free(call->args);
         }
+
         free(call);
         break;
 
@@ -385,8 +328,8 @@ void free_ast_recurse(Expr* expr)
         if (extrn == NULL)
             break;
 
-        if (extrn->identifier != NULL)
-            free(extrn->identifier);
+        free(extrn->identifier);
+        free(extrn);
         break;
 
     case EXPR_LITERAL:
@@ -394,17 +337,19 @@ void free_ast_recurse(Expr* expr)
         if (lit == NULL)
             break;
 
-        if (lit->data_type != NULL) {
-            if (lit->value.as_string != NULL)
-                free(lit->value.as_string);
+        if (lit->data_type == TYPE_STRING) {
+            free(lit->value.as_string);
         }
 
-        free(expr->as.literal);
+        free(lit);
         break;
+
     case EXPR_TYPE:
     default:
         break;
     }
+
+    free(expr);
 }
 
 void free_ast(AST* ast)
@@ -412,4 +357,7 @@ void free_ast(AST* ast)
     for (int i = 0; i < ast->exprs_count; i++) {
         free_ast_recurse(ast->exprs[i]);
     }
+
+    free(ast->exprs);
+    free(ast);
 }

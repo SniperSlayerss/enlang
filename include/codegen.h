@@ -6,52 +6,52 @@ typedef struct {
     char* label;
     DataType type;
     LiteralValues value;
-} Literal;
+} CodeLiteral;
 
 typedef struct {
-    Literal** data;
+    CodeLiteral** data;
     int size, cap;
-} LiteralArray;
+} CodeLiterals;
 
 typedef struct {
     char* label;
     // Get type information
-} FuncCall;
+} CodeFuncCall;
 
 typedef struct {
-    FuncCall** data;
+    CodeFuncCall** data;
     int size, cap;
-} FuncCallArray;
+} CodeFuncCalls;
 
 typedef struct {
     char* label;
-    LiteralArray literal_array;
-    FuncCallArray func_call_array;
-} FuncDef;
+    CodeLiterals literal_array;
+    CodeFuncCalls func_call_array;
+} CodeFuncDef;
 
 typedef struct {
-    FuncDef** data;
+    CodeFuncDef** data;
     int size, cap;
-} FuncDefArray;
+} CodeFuncDefs;
 
 typedef struct {
     const char** data;
     int size, cap;
-} ExternalArray;
+} CodeExternals;
 
 typedef struct {
-    ExternalArray externals;
-    FuncDefArray func_defs;
-    LiteralArray global_literals;
+    CodeExternals externals;
+    CodeFuncDefs func_defs;
+    CodeLiterals global_literals;
     bool has_entry_point;
 } ASTInfo;
 
-char* get_type(DataType type);
-int run_command(char* const argv[]);
-bool is_external_call(ASTInfo* info, const char* identifier);
+char* codegen_get_type(DataType type);
+int codegen_run_command(char* const argv[]);
+bool codegen_is_external_call(ASTInfo* info, const char* identifier);
 
 // This should generate then store the source code in out
-void generate_program(StringBuilder* out, ASTInfo* info, AST* ast);
-int generate_binary(char* out, char* filename);
+void codegen_generate_program(StringBuilder* out, ASTInfo* info, AST* ast);
+int codegen_generate_binary(char* out, char* filename);
 
 #endif
