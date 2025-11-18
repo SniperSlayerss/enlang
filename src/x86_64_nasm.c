@@ -41,7 +41,7 @@ const char* arg_registers_floating[] = {
 typedef struct {
     char* literal_label;
     DataType literal_type;
-} CodegenLiteral;
+} NASMLiteral;
 
 typedef struct {
     ASTInfo* info;
@@ -56,8 +56,8 @@ typedef struct {
     bool contains_external;
 
     // Literal scope
-    CodegenLiteral* current_literal;
-} ASTContext;
+    NASMLiteral* current_literal;
+} ASTContext; // TODO: Consider moving to codegen or parser
 
 void emit_notes(StringBuilder* out, ASTInfo* info)
 {
@@ -65,7 +65,7 @@ void emit_notes(StringBuilder* out, ASTInfo* info)
     // sb_append(out, "section.note.GNU - stack noalloc noexec nowrite progbits\n");
 }
 
-void emit_data_literal(StringBuilder* out, Literal* literal)
+void emit_data_literal(StringBuilder* out, CodeLiteral* literal)
 {
     switch (literal->type) {
     case TYPE_DOUBLE:
@@ -131,14 +131,14 @@ void emit_externals(StringBuilder* out, ASTInfo* info)
     }
 }
 
-void emit_arg(StringBuilder* out, ASTContext* context, CodegenLiteral* literal, int arg)
+void emit_arg(StringBuilder* out, ASTContext* context, NASMLiteral* literal, int arg)
 {
 
     char* label;
     if (literal->literal_type != TYPE_STRING) { // TODO: handle this better? does this make sense for all literals?
-        int len = snprintf(NULL, 0, "[%s]", literal->literal_label) + 1;
+        int len = snprintf(NULL, 0, "[rel %s]", literal->literal_label) + 1;
         label = malloc(len);
-        snprintf(label, len, "[%s]", literal->literal_label);
+        snprintf(label, len, "[rel %s]", literal->literal_label);
     } else {
         label = literal->literal_label;
     }
@@ -170,6 +170,8 @@ void emit_arg(StringBuilder* out, ASTContext* context, CodegenLiteral* literal, 
         }
         break;
     }
+
+    free(label);
 }
 
 void emit_prologue(StringBuilder* out)
@@ -200,13 +202,13 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         context->current_func = expr_func_def;
         context->num_of_func_lit = 0;
-	context->contains_external = false;
+        context->contains_external = false;
 
-        StringBuilder func_def_out = { 0 };
+        StringBuilder func_def_out;
         sb_init(&func_def_out);
 
         if (expr->as.func_def->body != NULL) {
-            for (int i = 0; expr_func_def->body[i] != NULL; i++) {
+            for (int i = 0; i < expr_func_def->body_count; i++) {
                 traverse_ast(&func_def_out, context, expr_func_def->body[i]);
             }
         }
@@ -221,6 +223,8 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         sb_append_char(out, '\n');
 
         sb_append(out, func_def_out.msg);
+
+        sb_free_contents(&func_def_out);
 
         emit_epilogue(out);
 
@@ -249,9 +253,9 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         int normal_count = 0, floating_count = 0;
 
         // TODO: remove this extra loop
-        da_new(CodegenLiteral*, normal_args);
-        da_new(CodegenLiteral*, floating_args);
-        for (int i = 0; i < expr_func_call->num_of_args; i++) {
+        da_new(NASMLiteral*, normal_args);
+        da_new(NASMLiteral*, floating_args);
+        for (int i = 0; i < expr_func_call->arg_count; i++) {
             traverse_ast(out, context, expr->as.func_call->args[i]);
             switch (context->current_literal->literal_type) {
             case TYPE_DOUBLE:
@@ -263,16 +267,31 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
                 normal_count++;
                 da_append(normal_args, context->current_literal);
                 break;
+            default:
+                free(context->current_literal->literal_label);
+                break;
             }
-	}
+        }
 
         for (int i = normal_args.size - 1; i >= 0; i--) {
             emit_arg(out, context, normal_args.data[i], i);
+
+            if (normal_args.data[i]->literal_type != TYPE_STRING) {
+                free(normal_args.data[i]->literal_label);
+            }
+            free(normal_args.data[i]);
         }
+        da_free(normal_args);
 
         for (int i = floating_args.size - 1; i >= 0; i--) {
             emit_arg(out, context, floating_args.data[i], i);
+
+            if (floating_args.data[i]->literal_type != TYPE_STRING) {
+                free(floating_args.data[i]->literal_label);
+            }
+            free(floating_args.data[i]);
         }
+        da_free(floating_args);
 
         if (floating_count == 0) {
             sb_append(out, "    xor rax, rax\n");
@@ -283,7 +302,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         sb_appendf(out, "    add rsp, %d\n", context->num_of_stack_args * 8);
         sb_append_char(out, '\n');
 
-        if (is_external_call(context->info, expr_func_call->identifier))
+        if (codegen_is_external_call(context->info, expr_func_call->identifier))
             context->contains_external = true;
 
         break;
@@ -297,23 +316,23 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         if (expr_literal == NULL)
             break;
 
-        CodegenLiteral* literal = malloc(sizeof *literal);
+        NASMLiteral* literal = malloc(sizeof *literal);
         literal->literal_type = expr_literal->data_type;
 
         // Dynamically name labels
         if (context->current_func != NULL) {
-            int len = snprintf(NULL, 0, "%s_%s_%ld", context->current_func->name, get_type(expr_literal->data_type), context->num_of_func_lit) + 1;
+            int len = snprintf(NULL, 0, "%s_%s_%ld", context->current_func->name, codegen_get_type(expr_literal->data_type), context->num_of_func_lit) + 1;
             char* label = malloc(len);
-            snprintf(label, len, "%s_%s_%ld", context->current_func->name, get_type(expr_literal->data_type), context->num_of_func_lit);
+            snprintf(label, len, "%s_%s_%ld", context->current_func->name, codegen_get_type(expr_literal->data_type), context->num_of_func_lit);
 
-	    literal->literal_label = label;
+            literal->literal_label = label;
             context->num_of_func_lit++;
         } else {
-            int len = snprintf(NULL, 0, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit) + 1;
+            int len = snprintf(NULL, 0, "%s_%ld", codegen_get_type(expr_literal->data_type), context->num_of_global_lit) + 1;
             char* label = malloc(len);
-            snprintf(label, len, "%s_%ld", get_type(expr_literal->data_type), context->num_of_global_lit);
+            snprintf(label, len, "%s_%ld", codegen_get_type(expr_literal->data_type), context->num_of_global_lit);
 
-	    literal->literal_label = label;
+            literal->literal_label = label;
             context->num_of_global_lit++;
         }
 
@@ -325,17 +344,17 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
     }
 }
 
-void emit_ast(StringBuilder* out, ASTInfo* info, Expr** ast)
+void emit_ast(StringBuilder* out, ASTInfo* info, AST* ast)
 {
     sb_append_char(out, '\n');
-    ASTContext context = { 0 };
+    ASTContext context = { 0 }; // TODO: Consider moving to codegen or parser
     context.info = info;
-    for (int i = 0; ast[i] != NULL; i++) {
-        traverse_ast(out, &context, ast[i]);
+    for (int i = 0; i < ast->exprs_count; i++) {
+        traverse_ast(out, &context, ast->exprs[i]);
     }
 }
 
-void emit_program(StringBuilder* out, ASTInfo* info, Expr** ast)
+void emit_program(StringBuilder* out, ASTInfo* info, AST* ast)
 {
     emit_externals(out, info);
     emit_notes(out, info);
@@ -344,16 +363,16 @@ void emit_program(StringBuilder* out, ASTInfo* info, Expr** ast)
     emit_ast(out, info, ast);
 }
 
-void generate_program(StringBuilder* out, ASTInfo* info, Expr** ast)
+void codegen_generate_program(StringBuilder* out, ASTInfo* info, AST* ast)
 {
     emit_program(out, info, ast);
     // printf("\n%s", out->msg);
 }
 
-int generate_binary(char* out, char* filename)
+int codegen_generate_binary(char* out, char* filename)
 {
     char* mkdir_args[] = { "mkdir", "-p", "build", NULL };
-    if (run_command(mkdir_args) != 0) {
+    if (codegen_run_command(mkdir_args) != 0) {
         printf("Error: Failed to create build directory\n");
         return EXIT_FAILURE;
     }
@@ -377,7 +396,7 @@ int generate_binary(char* out, char* filename)
         "-o", o_file,
         NULL
     };
-    if (run_command(nasm_args) != 0) {
+    if (codegen_run_command(nasm_args) != 0) {
         printf("Error: NASM assembly failed\n");
         return EXIT_FAILURE;
     }
@@ -389,10 +408,13 @@ int generate_binary(char* out, char* filename)
         "-o", filename,
         NULL
     };
-    if (run_command(gcc_args) != 0) {
+    if (codegen_run_command(gcc_args) != 0) {
         printf("Error: Linking failed\n");
         return EXIT_FAILURE;
     }
+
+    free(asm_file);
+    free(o_file);
 
     return EXIT_SUCCESS;
 }

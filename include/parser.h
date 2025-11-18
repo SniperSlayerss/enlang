@@ -3,8 +3,6 @@
 
 #include "lexer.h"
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef struct Expr Expr;
 
@@ -31,8 +29,8 @@ typedef struct {
 } ASTVarAssign;
 
 typedef struct {
-    const char* identifier;
-    /* Expr* params; */
+    char* identifier;
+    // Expr* params;
 } ASTExtrnDef;
 
 typedef struct {
@@ -42,16 +40,20 @@ typedef struct {
 
 typedef struct {
     const char* name;
+
     ASTArgument** params;
     int param_count;
+
     Expr** body;
+    int body_count;
+
     bool is_entry_point;
 } ASTFuncDef;
 
 typedef struct {
     const char* identifier;
     Expr** args;
-    size_t num_of_args;
+    int arg_count;
 } ASTFuncCall;
 
 // TODO: Allow over literal types
@@ -73,6 +75,12 @@ struct Expr {
     } as;
 };
 
-Expr** create_ast(LexerContext* lc);
+typedef struct {
+    Expr** exprs;
+    int exprs_count;
+} AST;
+
+AST* create_ast(LexerContext* lc);
+void free_ast(AST* ast);
 
 #endif
