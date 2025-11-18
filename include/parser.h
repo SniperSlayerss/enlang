@@ -3,8 +3,6 @@
 
 #include "lexer.h"
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef struct Expr Expr;
 
@@ -31,7 +29,7 @@ typedef struct {
 } ASTVarAssign;
 
 typedef struct {
-    const char* identifier;
+    char* identifier;
     // Expr* params;
 } ASTExtrnDef;
 

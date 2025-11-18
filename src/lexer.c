@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-void lex_context_close(LexerContext* lc) { fclose(lc->current_file); }
-
 bool lex_set_current_file(LexerContext* lc, char* file_path)
 {
     FILE* file = fopen(file_path, "r");
@@ -64,7 +62,7 @@ bool lex_get_next_token(LexerContext* lc)
 
         token.type = TOKEN_LITERAL;
         token.data_type = TYPE_STRING;
-        token.value.as_string = sb.msg;
+        token.value.as_string = sb_take_string(&sb);
         lc->token = token;
 
         return true;
@@ -76,6 +74,7 @@ bool lex_get_next_token(LexerContext* lc)
 
         while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*' && lc->current_char != '.') {
 
+            // Free this
             sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
@@ -86,73 +85,103 @@ bool lex_get_next_token(LexerContext* lc)
             }
         }
 
-        token.value.as_string = sb.msg;
-
         token.type = TOKEN_IDENTIFIER;
-        if (!strcmp(token.value.as_string, "define")) {
+        bool is_keyword = false;
+        if (!strcmp(sb.msg, "define")) {
             token.type = TOKEN_DEFINE;
-        } else if (!strcmp(token.value.as_string, "run")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "run")) {
             token.type = TOKEN_RUN;
-        } else if (!strcmp(token.value.as_string, "external")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "external")) {
             token.type = TOKEN_EXTERNAL;
-        } else if (!strcmp(token.value.as_string, "equal")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "equal")) {
             token.type = TOKEN_EQUAL;
-        } else if (!strcmp(token.value.as_string, "which")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "which")) {
             token.type = TOKEN_WHICH;
-        } else if (!strcmp(token.value.as_string, "returns")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "returns")) {
             token.type = TOKEN_RETURN;
-        } else if (!strcmp(token.value.as_string, "type")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "type")) {
             token.type = TOKEN_KTYPE;
-        } else if (!strcmp(token.value.as_string, "with")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "with")) {
             token.type = TOKEN_WITH;
-        } else if (!strcmp(token.value.as_string, "arguments")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "arguments")) {
             token.type = TOKEN_ARGUMENT;
-        } else if (!strcmp(token.value.as_string, "function")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "function")) {
             token.type = TOKEN_FUNCTION;
-        } else if (!strcmp(token.value.as_string, "let")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "let")) {
             token.type = TOKEN_LET;
-        } else if (!strcmp(token.value.as_string, "and")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "and")) {
             token.type = TOKEN_AND;
-        } else if (!strcmp(token.value.as_string, "as")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "as")) {
             token.type = TOKEN_AS;
-        } else if (!strcmp(token.value.as_string, "a")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "a")) {
             token.type = TOKEN_A;
-        } else if (!strcmp(token.value.as_string, "int8")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "int8")) {
             token.type = TOKEN_TYPE;
+            is_keyword = true;
             token.data_type = TYPE_INT8;
-        } else if (!strcmp(token.value.as_string, "int16")) {
+        } else if (!strcmp(sb.msg, "int16")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_INT16;
-        } else if (!strcmp(token.value.as_string, "int32")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "int32")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_INT32;
-        } else if (!strcmp(token.value.as_string, "int64")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "int64")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_INT64;
-        } else if (!strcmp(token.value.as_string, "uint8")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "uint8")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_UINT8;
-        } else if (!strcmp(token.value.as_string, "uint16")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "uint16")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_UINT16;
-        } else if (!strcmp(token.value.as_string, "uint32")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "uint32")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_UINT32;
-        } else if (!strcmp(token.value.as_string, "uint64")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "uint64")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_UINT64;
-        } else if (!strcmp(token.value.as_string, "float")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "float")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_FLOAT;
-        } else if (!strcmp(token.value.as_string, "double")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "double")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_DOUBLE;
-        } else if (!strcmp(token.value.as_string, "char")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "char")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_CHAR;
-        } else if (!strcmp(token.value.as_string, "string")) {
+            is_keyword = true;
+        } else if (!strcmp(sb.msg, "string")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_STRING;
+            is_keyword = true;
+        }
+        if (is_keyword) {
+            sb_free_contents(&sb);
+        } else {
+            token.value.as_string = sb_take_string(&sb);
         }
 
         lc->token = token;
@@ -161,9 +190,10 @@ bool lex_get_next_token(LexerContext* lc)
 
     // 5 : int32.
     // 5.01 : float.
-    StringBuilder sb;
-    sb_init(&sb);
     if (isdigit(lc->current_char) || lc->current_char == '.') {
+        StringBuilder sb;
+        sb_init(&sb);
+
         bool has_decimal = lc->current_char == '.';
         bool is_literal = false;
 
@@ -185,18 +215,22 @@ bool lex_get_next_token(LexerContext* lc)
 
         if (is_literal) {
             token.type = TOKEN_LITERAL;
+            char* number_str = sb_take_string(&sb);
+
             // TODO: accept different literal types with postfix
             // i.e. 2.0 as float or 2.0f as per C
             if (has_decimal) { // double
                 token.data_type = TYPE_DOUBLE;
-                token.value.as_double = strtod(sb.msg, NULL);
+                token.value.as_double = strtod(number_str, NULL);
             } else { // int32_t
                 token.data_type = TYPE_INT32;
-                token.value.as_int32 = (int32_t)strtol(sb.msg, NULL, 10);
+                token.value.as_int32 = (int32_t)strtol(number_str, NULL, 10);
             }
+            free(number_str);
             lc->token = token;
             return true;
         }
+        sb_free_contents(&sb);
     }
 
     if (lc->current_char == '/') {
@@ -346,8 +380,10 @@ bool lex_expect_with_context(LexerContext* lc, TokenType token_type,
 {
     if (lc->token.type != token_type) {
         log_token_error_inline(lc->token, token_type, file, line, func);
-        exit(420);
+        exit(EXIT_FAILURE);
         return false;
     }
     return true;
 }
+
+void lex_context_close(LexerContext* lc) { fclose(lc->current_file); }
