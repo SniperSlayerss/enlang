@@ -2,24 +2,18 @@
 //      standard
 //      math.
 
-// define [function_name] to return type [return_type | int32]
-
-// function defintion
-define times_func which returns type int32 with arguments:
-       x as a list of list of float32,
-       y as a list of float32,
-       z as a 2D array of float32:
-       let result equal x times y times z;
-       call foo with bar.
-
 // variable definition
+// let z as a 2D array of float32:
+// let x as a list of list of float32,
 let x as int16 equal 5.
 
-let baz equal call time_func with x, y, and z.
+// function defintion
+// define [function_name] with [arg as type, ...], returning [return_type]
+define func with x as float32, y as float32, returning int32:
+    call printf with "%d\n", x * y,
+    let result equal x times y times z,
+    return result.
 
 // function call
-call foo with bar.
-
-// variable reference
-bar as int8 equals 4
-
+call func with x, y, and z.
+let baz equal call time_func with x, y, and z.

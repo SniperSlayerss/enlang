@@ -20,6 +20,7 @@ typedef enum {
     TOKEN_EQUAL,
     TOKEN_KTYPE,
     TOKEN_WITH,
+    TOKEN_CALL,
     TOKEN_LET,
     TOKEN_RUN,
     TOKEN_AND,
@@ -40,7 +41,7 @@ typedef enum {
     TOKEN_DIV,
     TOKEN_MULT,
     TOKEN_EXP,
-} TokenType;
+} TokenKind;
 
 typedef enum {
     TYPE_INT8,
@@ -66,7 +67,7 @@ typedef union {
 } LiteralValues;
 
 typedef struct {
-    TokenType type;
+    TokenKind kind;
     LiteralValues value;
     DataType data_type;
 } Token;
@@ -81,7 +82,7 @@ void lex_context_close(LexerContext* lexer_context);
 
 bool lex_set_current_file(LexerContext* lexer_context, char* file_path);
 bool lex_get_next_token(LexerContext* lexer_context);
-bool lex_expect_with_context(LexerContext* lc, TokenType token_type,
+bool lex_expect_with_context(LexerContext* lc, TokenKind token_type,
     const char* file, int line, const char* func);
 
 #define LEX_EXPECT(lc, type) \

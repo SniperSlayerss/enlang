@@ -25,27 +25,37 @@ Expr* parse_external(LexerContext* lc)
     return extrn_expr;
 }
 
-Expr* parse_func_call(LexerContext* lc, const char* identifier)
+Expr* parse_func_call(LexerContext* lc)
 {
-    lex_get_next_token(lc); // Eat '('
+    LEX_EXPECT_NEXT(lc, TOKEN_IDENTIFIER); // Eat 'call'
+    const char* identifier = lc->token.value.as_string;
+
+    LEX_EXPECT_NEXT(lc, TOKEN_WITH);
 
     // TODO implement function call ast
     // Take in parameters, should be similar to defintion loop
+    lex_get_next_token(lc); // Eat 'with'
     da_new(Expr*, args);
-    while (lc->token.type != TOKEN_RPAREN) {
+    while (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
         da_append(args, parse_main(lc, true));
+        printf("SYM: %c\n", lc->token.value.as_char);
 
-        if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
-            LEX_EXPECT(lc, TOKEN_RPAREN);
-        } else {
-            lex_get_next_token(lc);
+        if (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
+            if (lc->token.kind != TOKEN_COMMA) {
+                // TODO: add semi-colon to error message
+                LEX_EXPECT(lc, TOKEN_COMMA);
+            } else {
+                lex_get_next_token(lc);
+            }
         }
     }
 
-    lex_get_next_token(lc);
-    if (lc->token.type != TOKEN_COMMA && lc->token.type != TOKEN_PERIOD) {
-        // TODO: add comma to error message, or only allow period at end of function def
-        LEX_EXPECT_NEXT(lc, TOKEN_PERIOD);
+    printf("DONE\n");
+
+    // lex_get_next_token(lc);
+    if (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
+        // TODO: add period to error message, or only allow period at end of function def
+        LEX_EXPECT_NEXT(lc, TOKEN_SEMI_COLON);
     }
 
     ASTFuncCall* func_call = malloc(sizeof(*func_call));
@@ -62,21 +72,20 @@ Expr* parse_func_call(LexerContext* lc, const char* identifier)
 
 Expr* parse_func_def(LexerContext* lc)
 {
-    bool is_entry_point = lc->token.type == TOKEN_RUN;
+    bool is_entry_point = lc->token.kind == TOKEN_RUN;
 
     LEX_EXPECT_NEXT(lc, TOKEN_IDENTIFIER); // Eat 'define' or 'run'
-
     const char* identifier = lc->token.value.as_string;
 
     LEX_EXPECT_NEXT(lc, TOKEN_COLON); // Eat identifier
 
     da_new(Expr*, body);
     lex_get_next_token(lc); // Eat ':'
-    while (lc->token.type != TOKEN_PERIOD) {
+    while (lc->token.kind != TOKEN_PERIOD) {
         Expr* expr = parse_main(lc, true);
         da_append(body, expr);
 
-        if (lc->token.type == TOKEN_COMMA) {
+        if (lc->token.kind == TOKEN_SEMI_COLON) {
             lex_get_next_token(lc);
         } else {
             LEX_EXPECT(lc, TOKEN_PERIOD);
@@ -162,7 +171,7 @@ Expr* parse_var_assign(LexerContext* lc)
     LEX_EXPECT_NEXT(lc, TOKEN_TYPE); // Eat 'as'
 
     lex_get_next_token(lc);
-    if (lc->token.type != TOKEN_PERIOD && lc->token.type != TOKEN_COMMA) {
+    if (lc->token.kind != TOKEN_PERIOD && lc->token.kind != TOKEN_COMMA) {
         LEX_EXPECT(lc, TOKEN_PERIOD);
     } // Eat data type
 
@@ -192,19 +201,6 @@ Expr* parse_var_assign(LexerContext* lc)
 
     return var_expr;
 }
-Expr* parse_identifier(LexerContext* lc)
-{
-    const char* identifier = lc->token.value.as_string;
-
-    lex_get_next_token(lc); // Eat identifier
-
-    // If we get '(' then the identifier is part of a function call
-    if (lc->token.type == TOKEN_LPAREN) {
-        return parse_func_call(lc, identifier);
-    }
-
-    // Otherwise its just a variable reference
-}
 
 // TODO Parse expressions properly
 Expr* parse_expression(LexerContext* lc)
@@ -212,7 +208,7 @@ Expr* parse_expression(LexerContext* lc)
     Expr* expr;
     /* while (!(LEX_EXPECT(lc, TOKEN_PERIOD) || LEX_EXPECT(lc, TOKEN_AS))) { */
     /* } */
-    if (lc->token.type == TOKEN_LITERAL)
+    if (lc->token.kind == TOKEN_LITERAL)
         return parse_literal(lc);
     return expr;
 }
@@ -220,19 +216,19 @@ Expr* parse_expression(LexerContext* lc)
 Expr* parse_main(LexerContext* lc, bool is_func_body)
 {
     if (!is_func_body) {
-        if (lc->token.type == TOKEN_EXTERNAL)
+        if (lc->token.kind == TOKEN_EXTERNAL)
             return parse_external(lc);
-        if (lc->token.type == TOKEN_DEFINE || lc->token.type == TOKEN_RUN)
+        if (lc->token.kind == TOKEN_DEFINE || lc->token.kind == TOKEN_RUN)
             return parse_func_def(lc);
     }
 
-    if (lc->token.type == TOKEN_LET)
+    if (lc->token.kind == TOKEN_LET)
         return parse_var_assign(lc);
 
-    if (lc->token.type == TOKEN_IDENTIFIER)
-        return parse_identifier(lc);
+    if (lc->token.kind == TOKEN_CALL)
+        return parse_func_call(lc);
 
-    if (lc->token.type == TOKEN_LITERAL)
+    if (lc->token.kind == TOKEN_LITERAL)
         return parse_literal(lc);
 
     lex_get_next_token(lc);
@@ -243,7 +239,7 @@ AST* create_ast(LexerContext* lc)
     lex_get_next_token(lc);
 
     da_new(Expr*, ast_arr);
-    while (lc->token.type != TOKEN_EOF) {
+    while (lc->token.kind != TOKEN_EOF) {
         da_append(ast_arr, parse_main(lc, false));
         lex_get_next_token(lc);
     }
