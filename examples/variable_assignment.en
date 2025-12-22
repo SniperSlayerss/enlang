@@ -1,9 +1,0 @@
-let x equal 5 as int16.
-
-external printf.
-
-run main:
-    printf("%f", x),
-    let x equal 6,
-    printf("%f", x).
-

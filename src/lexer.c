@@ -37,7 +37,7 @@ bool lex_get_next_token(LexerContext* lc)
 
     while (isspace(lc->current_char)) {
         if (!get_next_char(lc)) {
-            token.type = TOKEN_EOF;
+            token.kind = TOKEN_EOF;
             lc->token = token;
             return false;
         }
@@ -53,14 +53,14 @@ bool lex_get_next_token(LexerContext* lc)
 
             if (!get_next_char(lc)) {
                 sb_free_contents(&sb);
-                token.type = TOKEN_EOF;
+                token.kind = TOKEN_EOF;
                 lc->token = token;
                 return true;
             }
         }
         get_next_char(lc);
 
-        token.type = TOKEN_LITERAL;
+        token.kind = TOKEN_LITERAL;
         token.data_type = TYPE_STRING;
         token.value.as_string = sb_take_string(&sb);
         lc->token = token;
@@ -73,117 +73,92 @@ bool lex_get_next_token(LexerContext* lc)
         sb_init(&sb);
 
         while ((isalnum(lc->current_char) || lc->current_char == '_') && lc->current_char != '*' && lc->current_char != '.') {
-
-            // Free this
             sb_append_char(&sb, lc->current_char);
 
             if (!get_next_char(lc)) {
                 sb_free_contents(&sb);
-                token.type = TOKEN_EOF;
+                token.kind = TOKEN_EOF;
                 lc->token = token;
                 return true;
             }
         }
 
-        token.type = TOKEN_IDENTIFIER;
-        bool is_keyword = false;
+        token.kind = TOKEN_IDENTIFIER;
+        bool is_keyword = true;
         if (!strcmp(sb.msg, "define")) {
-            token.type = TOKEN_DEFINE;
-            is_keyword = true;
+            token.kind = TOKEN_DEFINE;
         } else if (!strcmp(sb.msg, "run")) {
-            token.type = TOKEN_RUN;
-            is_keyword = true;
+            token.kind = TOKEN_RUN;
         } else if (!strcmp(sb.msg, "external")) {
-            token.type = TOKEN_EXTERNAL;
-            is_keyword = true;
+            token.kind = TOKEN_EXTERNAL;
+        } else if (!strcmp(sb.msg, "call")) {
+            token.kind = TOKEN_CALL;
         } else if (!strcmp(sb.msg, "equal")) {
-            token.type = TOKEN_EQUAL;
-            is_keyword = true;
+            token.kind = TOKEN_EQUAL;
         } else if (!strcmp(sb.msg, "which")) {
-            token.type = TOKEN_WHICH;
-            is_keyword = true;
+            token.kind = TOKEN_WHICH;
         } else if (!strcmp(sb.msg, "returns")) {
-            token.type = TOKEN_RETURN;
-            is_keyword = true;
+            token.kind = TOKEN_RETURN;
         } else if (!strcmp(sb.msg, "type")) {
-            token.type = TOKEN_KTYPE;
-            is_keyword = true;
+            token.kind = TOKEN_KTYPE;
         } else if (!strcmp(sb.msg, "with")) {
-            token.type = TOKEN_WITH;
-            is_keyword = true;
+            token.kind = TOKEN_WITH;
         } else if (!strcmp(sb.msg, "arguments")) {
-            token.type = TOKEN_ARGUMENT;
-            is_keyword = true;
+            token.kind = TOKEN_ARGUMENT;
         } else if (!strcmp(sb.msg, "function")) {
-            token.type = TOKEN_FUNCTION;
-            is_keyword = true;
+            token.kind = TOKEN_FUNCTION;
         } else if (!strcmp(sb.msg, "let")) {
-            token.type = TOKEN_LET;
-            is_keyword = true;
+            token.kind = TOKEN_LET;
         } else if (!strcmp(sb.msg, "and")) {
-            token.type = TOKEN_AND;
-            is_keyword = true;
+            token.kind = TOKEN_AND;
         } else if (!strcmp(sb.msg, "as")) {
-            token.type = TOKEN_AS;
-            is_keyword = true;
+            token.kind = TOKEN_AS;
         } else if (!strcmp(sb.msg, "a")) {
-            token.type = TOKEN_A;
-            is_keyword = true;
+            token.kind = TOKEN_A;
         } else if (!strcmp(sb.msg, "int8")) {
-            token.type = TOKEN_TYPE;
-            is_keyword = true;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_INT8;
         } else if (!strcmp(sb.msg, "int16")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_INT16;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "int32")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_INT32;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "int64")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_INT64;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "uint8")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_UINT8;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "uint16")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_UINT16;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "uint32")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_UINT32;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "uint64")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_UINT64;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "float")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_FLOAT;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "double")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_DOUBLE;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "char")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_CHAR;
-            is_keyword = true;
         } else if (!strcmp(sb.msg, "string")) {
-            token.type = TOKEN_TYPE;
+            token.kind = TOKEN_TYPE;
             token.data_type = TYPE_STRING;
-            is_keyword = true;
-        }
-        if (is_keyword) {
-            sb_free_contents(&sb);
         } else {
             token.value.as_string = sb_take_string(&sb);
+            is_keyword = false;
         }
 
+        if (is_keyword) {
+            sb_free_contents(&sb);
+        }
         lc->token = token;
         return true;
     }
@@ -207,14 +182,14 @@ bool lex_get_next_token(LexerContext* lc)
 
             if (!get_next_char(lc)) {
                 sb_free_contents(&sb);
-                token.type = TOKEN_EOF;
+                token.kind = TOKEN_EOF;
                 lc->token = token;
                 return false;
             }
         }
 
         if (is_literal) {
-            token.type = TOKEN_LITERAL;
+            token.kind = TOKEN_LITERAL;
             char* number_str = sb_take_string(&sb);
 
             // TODO: accept different literal types with postfix
@@ -238,7 +213,7 @@ bool lex_get_next_token(LexerContext* lc)
         if (lc->current_char == '/') {
             do {
                 if (!get_next_char(lc)) {
-                    token.type = TOKEN_EOF;
+                    token.kind = TOKEN_EOF;
                     lc->token = token;
                     return false;
                 }
@@ -248,30 +223,30 @@ bool lex_get_next_token(LexerContext* lc)
     }
 
     if (lc->current_char == '.') {
-        token.type = TOKEN_PERIOD;
+        token.kind = TOKEN_PERIOD;
     } else if (lc->current_char == ',') {
-        token.type = TOKEN_COMMA;
+        token.kind = TOKEN_COMMA;
     } else if (lc->current_char == ';') {
-        token.type = TOKEN_SEMI_COLON;
+        token.kind = TOKEN_SEMI_COLON;
     } else if (lc->current_char == ':') {
-        token.type = TOKEN_COLON;
+        token.kind = TOKEN_COLON;
     } else if (lc->current_char == '(') {
-        token.type = TOKEN_LPAREN;
+        token.kind = TOKEN_LPAREN;
     } else if (lc->current_char == ')') {
-        token.type = TOKEN_RPAREN;
+        token.kind = TOKEN_RPAREN;
     } else if (lc->current_char == '*') {
-        token.type = TOKEN_STAR;
+        token.kind = TOKEN_STAR;
     }
 
     // Must be special token if not null
-    if (token.type) {
+    if (token.kind) {
         token.value.as_char = lc->current_char;
         lc->token = token;
         get_next_char(lc);
         return true;
     }
 
-    token.type = TOKEN_ILLEGAL;
+    token.kind = TOKEN_ILLEGAL;
     token.value.as_char = lc->current_char;
     printf("ERROR: unexpected token %c\n", lc->current_char);
     return false;
@@ -279,7 +254,11 @@ bool lex_get_next_token(LexerContext* lc)
 
 static inline const char* log_token(Token token)
 {
-    switch (token.type) {
+    switch (token.kind) {
+    case TOKEN_ILLEGAL:
+        return "Illegal";
+    case TOKEN_EOF:
+        return "EOF";
     case TOKEN_IDENTIFIER:
         return token.value.as_string;
     case TOKEN_TYPE:
@@ -294,6 +273,7 @@ static inline const char* log_token(Token token)
     case TOKEN_WHICH:
     case TOKEN_EQUAL:
     case TOKEN_KTYPE:
+    case TOKEN_CALL:
     case TOKEN_WITH:
     case TOKEN_LET:
     case TOKEN_AND:
@@ -313,16 +293,17 @@ static inline const char* log_token(Token token)
     case TOKEN_SUB:
     case TOKEN_DIV:
     case TOKEN_MULT:
-    case TOKEN_EXP:
+    case TOKEN_EXP: {
         static char buf[2];
         buf[0] = token.value.as_char;
         buf[1] = '\0';
         return buf;
     }
+    }
     return "<unknown>";
 }
 
-static inline void log_token_error_inline(Token token, TokenType expected, const char* file, int line, const char* func)
+static inline void log_token_error_inline(Token token, TokenKind expected, const char* file, int line, const char* func)
 {
     const char* token_str = log_token(token);
     switch (expected) {
@@ -343,6 +324,7 @@ static inline void log_token_error_inline(Token token, TokenType expected, const
     case TOKEN_WHICH:
     case TOKEN_EQUAL:
     case TOKEN_KTYPE:
+    case TOKEN_CALL:
     case TOKEN_WITH:
     case TOKEN_LET:
     case TOKEN_AND:
@@ -353,33 +335,69 @@ static inline void log_token_error_inline(Token token, TokenType expected, const
             file, line, func, token_str);
         break;
     case TOKEN_SEMI_COLON:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_SEMI_COLON, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_COLON:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_COLON, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_PERIOD:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_PERIOD, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_COMMA:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_COMMA, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_LPAREN:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_LPAREN, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_RPAREN:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_RPAREN, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_ELLIPSIS:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_ELLIPSIS, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_STAR:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_STAR, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_PLUS:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_PLUS, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_SUB:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_SUB, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_DIV:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_DIV, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_MULT:
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_MULT, got '%s'\n",
+            file, line, func, token_str);
+        break;
     case TOKEN_EXP:
-        fprintf(stderr, "ERROR [%s:%d %s]: Expected symbol, got '%s'\n",
+        fprintf(stderr, "ERROR [%s:%d %s]: Expected TOKEN_EXP, got '%s'\n",
             file, line, func, token_str);
         break;
     default:
-        fprintf(stderr, "ERROR [%s:%d %s]: Unknown token type '%s'\n",
+        fprintf(stderr, "ERROR [%s:%d %s]: Unknown token '%s'\n",
             file, line, func, token_str);
         break;
     }
 }
 
-bool lex_expect_with_context(LexerContext* lc, TokenType token_type,
+bool lex_expect_with_context(LexerContext* lc, TokenKind token_kind,
     const char* file, int line, const char* func)
 {
-    if (lc->token.type != token_type) {
-        log_token_error_inline(lc->token, token_type, file, line, func);
+    if (lc->token.kind != token_kind) {
+        log_token_error_inline(lc->token, token_kind, file, line, func);
         exit(EXIT_FAILURE);
         return false;
     }
