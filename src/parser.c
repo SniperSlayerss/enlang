@@ -34,11 +34,11 @@ Expr* parse_func_call(LexerContext* lc)
 
     // TODO implement function call ast
     // Take in parameters, should be similar to defintion loop
+
     lex_get_next_token(lc); // Eat 'with'
     da_new(Expr*, args);
     while (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
         da_append(args, parse_main(lc, true));
-        printf("SYM: %c\n", lc->token.value.as_char);
 
         if (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
             if (lc->token.kind != TOKEN_COMMA) {
@@ -49,8 +49,6 @@ Expr* parse_func_call(LexerContext* lc)
             }
         }
     }
-
-    printf("DONE\n");
 
     // lex_get_next_token(lc);
     if (lc->token.kind != TOKEN_SEMI_COLON && lc->token.kind != TOKEN_PERIOD) {
