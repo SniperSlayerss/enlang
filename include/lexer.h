@@ -64,11 +64,11 @@ typedef union {
     int32_t as_int32;
     float as_float;
     double as_double;
-} LiteralValues;
+} LiteralAsType;
 
 typedef struct {
     TokenKind kind;
-    LiteralValues value;
+    LiteralAsType value;
     DataType data_type;
 } Token;
 

@@ -257,7 +257,7 @@ void free_ast_recurse(Expr* expr)
         return;
 
     switch (expr->type) {
-    case EXPR_FUNC_DEF:
+    case EXPR_FUNC_DEF: {
         ASTFuncDef* def = expr->as.func_def;
         if (def == NULL)
             break;
@@ -283,9 +283,9 @@ void free_ast_recurse(Expr* expr)
         }
 
         free(def);
-        break;
+    } break;
 
-    case EXPR_VAR_ASSIGN:
+    case EXPR_VAR_ASSIGN: {
         ASTVarAssign* assign = expr->as.var_assign;
         if (assign == NULL)
             break;
@@ -299,9 +299,9 @@ void free_ast_recurse(Expr* expr)
         }
 
         free(assign);
-        break;
+    } break;
 
-    case EXPR_FUNC_CALL:
+    case EXPR_FUNC_CALL: {
         ASTFuncCall* call = expr->as.func_call;
         if (call == NULL)
             break;
@@ -317,18 +317,18 @@ void free_ast_recurse(Expr* expr)
         }
 
         free(call);
-        break;
+    } break;
 
-    case EXPR_EXTERNAL:
+    case EXPR_EXTERNAL: {
         ASTExtrnDef* extrn = expr->as.extrn_def;
         if (extrn == NULL)
             break;
 
         free(extrn->identifier);
         free(extrn);
-        break;
+    } break;
 
-    case EXPR_LITERAL:
+    case EXPR_LITERAL: {
         ASTLiteral* lit = expr->as.literal;
         if (lit == NULL)
             break;
@@ -338,7 +338,7 @@ void free_ast_recurse(Expr* expr)
         }
 
         free(lit);
-        break;
+    } break;
 
     case EXPR_TYPE:
     default:
