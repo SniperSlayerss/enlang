@@ -18,8 +18,7 @@ bool lex_set_current_file(LexerContext* lc, char* file_path)
 
 bool get_next_char(LexerContext* lc)
 {
-    char c = getc(lc->current_file);
-    // putchar(c);
+    int c = getc(lc->current_file);
     if (c == EOF) {
         return false;
     }
@@ -165,46 +164,65 @@ bool lex_get_next_token(LexerContext* lc)
 
     // 5 : int32.
     // 5.01 : float.
+    // TODO: rewrite/simplify
     if (isdigit(lc->current_char) || lc->current_char == '.') {
         StringBuilder sb;
         sb_init(&sb);
 
-        bool has_decimal = lc->current_char == '.';
-        bool is_literal = false;
+        bool has_digits = false;
+        bool is_float = false;
 
-        while (isdigit(lc->current_char) || lc->current_char == '.') {
-            if (lc->current_char == '.' && has_decimal)
-                break;
-            is_literal = true;
+        // leading digits
+        while (isdigit(lc->current_char)) {
+            has_digits = true;
             sb_append_char(&sb, lc->current_char);
+            if (!get_next_char(lc))
+                break;
+        }
 
-            has_decimal = lc->current_char == '.' || has_decimal;
+        // decimal point
+        if (lc->current_char == '.') {
+            // peek to check if '.' is followed by a digit
+            int next = getc(lc->current_file);
+            if (next != EOF && isdigit(next)) {
+                is_float = true;
+                sb_append_char(&sb, '.');
+                sb_append_char(&sb, (char)next);
+                has_digits = true;
+                get_next_char(lc); // advance past the digit we peeked
+            } else {
+                // not a float
+                if (next != EOF)
+                    ungetc(next, lc->current_file);
+            }
 
-            if (!get_next_char(lc)) {
-                sb_free_contents(&sb);
-                token.kind = TOKEN_EOF;
-                lc->token = token;
-                return false;
+            // consume rest of digits after '.'
+            if (is_float) {
+                while (isdigit(lc->current_char)) {
+                    sb_append_char(&sb, lc->current_char);
+                    if (!get_next_char(lc))
+                        break;
+                }
             }
         }
 
-        if (is_literal) {
+        if (has_digits) {
             token.kind = TOKEN_LITERAL;
             char* number_str = sb_take_string(&sb);
 
-            // TODO: accept different literal types with postfix
-            // i.e. 2.0 as float or 2.0f as per C
-            if (has_decimal) { // double
+            if (is_float) {
                 token.data_type = TYPE_DOUBLE;
                 token.value.as_double = strtod(number_str, NULL);
-            } else { // int32_t
+            } else {
                 token.data_type = TYPE_INT32;
                 token.value.as_int32 = (int32_t)strtol(number_str, NULL, 10);
             }
+
             free(number_str);
             lc->token = token;
             return true;
         }
+
         sb_free_contents(&sb);
     }
 

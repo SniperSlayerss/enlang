@@ -406,6 +406,8 @@ int codegen_generate_binary(char* out, char* filename)
         return EXIT_FAILURE;
     }
 
+    printf("Generated %s binary\n", filename);
+
     free(asm_file);
     free(o_file);
 
