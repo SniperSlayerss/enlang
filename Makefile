@@ -15,4 +15,3 @@ build/%.o: src/%.c
 clean:
 	rm -rf build/
 	rm -rf out/
-	rm $(TARGET)
