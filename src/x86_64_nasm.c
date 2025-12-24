@@ -57,32 +57,32 @@ typedef struct {
 
     // Literal scope
     NASMLiteral* current_literal;
-} ASTContext; // TODO: Consider moving to codegen or parser
+} NASMContext;
 
-void emit_notes(StringBuilder* out, ASTInfo* info)
+void emit_notes(ASTInfo* info, StringBuilder* out)
 {
     // sb_append_char(out, '\n');
     // sb_append(out, "section.note.GNU - stack noalloc noexec nowrite progbits\n");
 }
 
-void emit_data_literal(StringBuilder* out, CodeLiteral* literal)
+void emit_data_literal(CodeLiteral* literal, StringBuilder* out)
 {
-    switch (literal->type) {
+    switch (*literal->type) {
     case TYPE_DOUBLE:
-        sb_appendf(out, "    %s dq %lf\n", literal->label, literal->value.as_double);
+        sb_appendf(out, "    %s dq %lf\n", literal->label, literal->value->as_double);
         break;
     case TYPE_INT32:
-        sb_appendf(out, "    %s dd %d\n", literal->label, literal->value.as_int32);
+        sb_appendf(out, "    %s dd %d\n", literal->label, literal->value->as_int32);
         break;
     case TYPE_STRING:
-        sb_appendf(out, "    %s db `%s`, 0\n", literal->label, literal->value.as_string);
+        sb_appendf(out, "    %s db `%s`, 0\n", literal->label, literal->value->as_string);
         break;
     default:
         NOB_TODO("Add more type literals");
     }
 }
 
-void emit_data_section(StringBuilder* out, ASTInfo* info)
+void emit_data_section(ASTInfo* info, StringBuilder* out)
 {
     sb_append_char(out, '\n');
     sb_append(out, "section .data\n");
@@ -90,7 +90,7 @@ void emit_data_section(StringBuilder* out, ASTInfo* info)
     // TODO: ADD BETTER LOGGING, handle NULL better
     if (info->global_literals.data != NULL) {
         for (int i = 0; i < info->global_literals.size; i++) {
-            emit_data_literal(out, info->global_literals.data[i]);
+            emit_data_literal(info->global_literals.data[i], out);
         }
     }
 
@@ -105,12 +105,12 @@ void emit_data_section(StringBuilder* out, ASTInfo* info)
         }
 
         for (int j = 0; j < info->func_defs.data[i]->literal_array.size; j++) {
-            emit_data_literal(out, info->func_defs.data[i]->literal_array.data[j]);
+            emit_data_literal(info->func_defs.data[i]->literal_array.data[j], out);
         }
     }
 }
 
-void emit_text_section(StringBuilder* out, ASTInfo* info)
+void emit_text_section(ASTInfo* info, StringBuilder* out)
 {
     sb_append_char(out, '\n');
     sb_append(out, "section .text\n");
@@ -119,7 +119,7 @@ void emit_text_section(StringBuilder* out, ASTInfo* info)
         sb_append(out, "    global main\n");
 }
 
-void emit_externals(StringBuilder* out, ASTInfo* info)
+void emit_externals(ASTInfo* info, StringBuilder* out)
 {
     if (info->externals.data == NULL) {
         // TODO: ADD BETTER LOGGING
@@ -131,7 +131,7 @@ void emit_externals(StringBuilder* out, ASTInfo* info)
     }
 }
 
-void emit_arg(StringBuilder* out, ASTContext* context, NASMLiteral* literal, int arg)
+void emit_arg(StringBuilder* out, NASMContext* context, NASMLiteral* literal, int arg)
 {
 
     char* label;
@@ -186,13 +186,13 @@ void emit_epilogue(StringBuilder* out)
     sb_append(out, "    ret\n");
 }
 
-void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
+void traverse_ast(NASMContext* context, Expr* expr, StringBuilder* out)
 {
     if (expr == NULL)
         return;
 
     switch (expr->type) {
-    case EXPR_FUNC_DEF: // Has Expr** body
+    case EXPR_FUNC_DEF: { // Has Expr** body
         ASTFuncDef* expr_func_def = expr->as.func_def;
 
         if (expr_func_def == NULL)
@@ -209,7 +209,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         if (expr->as.func_def->body != NULL) {
             for (int i = 0; i < expr_func_def->body_count; i++) {
-                traverse_ast(&func_def_out, context, expr_func_def->body[i]);
+                traverse_ast(context, expr_func_def->body[i], &func_def_out);
             }
         }
 
@@ -228,18 +228,18 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         emit_epilogue(out);
 
-        break;
+    } break;
 
-    case EXPR_VAR_ASSIGN: // Has Expr* expression
+    case EXPR_VAR_ASSIGN: { // Has Expr* expression
         ASTVarAssign* expr_var_assign = expr->as.var_assign;
         // TODO
         if (expr_var_assign == NULL)
             break;
 
-        traverse_ast(out, context, expr_var_assign->assign_expr);
-        break;
+        traverse_ast(context, expr_var_assign->assign_expr, out);
+    } break;
 
-    case EXPR_FUNC_CALL:
+    case EXPR_FUNC_CALL: {
         ASTFuncCall* expr_func_call = expr->as.func_call;
         context->num_of_stack_args = 0;
 
@@ -256,7 +256,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         da_new(NASMLiteral*, normal_args);
         da_new(NASMLiteral*, floating_args);
         for (int i = 0; i < expr_func_call->arg_count; i++) {
-            traverse_ast(out, context, expr->as.func_call->args[i]);
+            traverse_ast(context, expr->as.func_call->args[i], out);
             switch (context->current_literal->literal_type) {
             case TYPE_DOUBLE:
                 floating_count++;
@@ -304,13 +304,9 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
         if (codegen_is_external_call(context->info, expr_func_call->identifier))
             context->contains_external = true;
+    } break;
 
-        break;
-
-    case EXPR_EXTERNAL:
-        break;
-
-    case EXPR_LITERAL:
+    case EXPR_LITERAL: {
         ASTLiteral* expr_literal = expr->as.literal;
 
         if (expr_literal == NULL)
@@ -337,35 +333,32 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         }
 
         context->current_literal = literal;
-        break;
-    case EXPR_TYPE:
-    default:
-        break;
+    } break;
     }
 }
 
-void emit_ast(StringBuilder* out, ASTInfo* info, AST* ast)
+void emit_ast(AST* ast, ASTInfo* info, StringBuilder* out)
 {
     sb_append_char(out, '\n');
-    ASTContext context = { 0 }; // TODO: Consider moving to codegen or parser
+    NASMContext context = { 0 };
     context.info = info;
     for (int i = 0; i < ast->exprs_count; i++) {
-        traverse_ast(out, &context, ast->exprs[i]);
+        traverse_ast(&context, ast->exprs[i], out);
     }
 }
 
-void emit_program(StringBuilder* out, ASTInfo* info, AST* ast)
+void emit_program(AST* ast, ASTInfo* info, StringBuilder* out)
 {
-    emit_externals(out, info);
-    emit_notes(out, info);
-    emit_data_section(out, info);
-    emit_text_section(out, info);
-    emit_ast(out, info, ast);
+    emit_externals(info, out);
+    emit_notes(info, out);
+    emit_data_section(info, out);
+    emit_text_section(info, out);
+    emit_ast(ast, info, out);
 }
 
-void codegen_generate_program(StringBuilder* out, ASTInfo* info, AST* ast)
+void codegen_generate_program(AST* ast, ASTInfo* info, StringBuilder* out)
 {
-    emit_program(out, info, ast);
+    emit_program(ast, info, out);
     // printf("\n%s", out->msg);
 }
 

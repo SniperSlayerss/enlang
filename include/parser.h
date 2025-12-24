@@ -58,7 +58,7 @@ typedef struct {
 
 // TODO: Allow over literal types
 typedef struct {
-    LiteralValues value;
+    LiteralAsType value;
     DataType data_type;
 } ASTLiteral;
 
