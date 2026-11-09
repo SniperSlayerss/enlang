@@ -29,7 +29,7 @@ typedef struct {
 } ASTVarAssign;
 
 typedef struct {
-    char* identifier;
+    const char* identifier;
     // Expr* params;
 } ASTExtrnDef;
 
@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
     const char* identifier;
     Expr** args;
-    int arg_count;
+    size_t arg_count;
 } ASTFuncCall;
 
 // TODO: Allow over literal types

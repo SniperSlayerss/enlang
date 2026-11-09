@@ -114,6 +114,7 @@ Expr* parse_literal(LexerContext* lc)
         return NULL;
     }
 
+    // TODO
     /* switch (lc->token.data_type) { */
     /* case TYPE_DOUBLE: */
     /*     literal->value.as_double = lc->token.value.as_double; */
@@ -192,6 +193,7 @@ Expr* parse_var_assign(LexerContext* lc)
 
     return var_expr;
 }
+
 Expr* parse_identifier(LexerContext* lc)
 {
     const char* identifier = lc->token.value.as_string;
@@ -203,13 +205,14 @@ Expr* parse_identifier(LexerContext* lc)
         return parse_func_call(lc, identifier);
     }
 
-    // Otherwise its just a variable reference
+    // TODO: Otherwise its just a variable reference
+    NOB_TODO("Variable reference");
 }
 
 // TODO Parse expressions properly
 Expr* parse_expression(LexerContext* lc)
 {
-    Expr* expr;
+    Expr* expr = { 0 };
     /* while (!(LEX_EXPECT(lc, TOKEN_PERIOD) || LEX_EXPECT(lc, TOKEN_AS))) { */
     /* } */
     if (lc->token.type == TOKEN_LITERAL)
@@ -236,6 +239,7 @@ Expr* parse_main(LexerContext* lc, bool is_func_body)
         return parse_literal(lc);
 
     lex_get_next_token(lc);
+    return NULL;
 }
 
 AST* create_ast(LexerContext* lc)
@@ -261,18 +265,19 @@ void free_ast_recurse(Expr* expr)
         return;
 
     switch (expr->type) {
-    case EXPR_FUNC_DEF:
+    case EXPR_FUNC_DEF: {
+
         ASTFuncDef* def = expr->as.func_def;
         if (def == NULL)
             break;
 
-        free(def->name);
+        free((void*)def->name);
 
         if (def->body != NULL) {
             for (int i = 0; i < def->param_count; i++) {
                 ASTArgument* arg = def->params[i];
                 if (arg != NULL) {
-                    free(arg->arg);
+                    free((void*)arg->arg);
                     free(arg->type);
                 }
                 free(arg);
@@ -288,13 +293,13 @@ void free_ast_recurse(Expr* expr)
 
         free(def);
         break;
-
-    case EXPR_VAR_ASSIGN:
+    }
+    case EXPR_VAR_ASSIGN: {
         ASTVarAssign* assign = expr->as.var_assign;
         if (assign == NULL)
             break;
 
-        free(assign->identifier);
+        free((void*)assign->identifier);
         free(assign->type);
 
         if (assign->assign_expr != NULL) {
@@ -304,16 +309,16 @@ void free_ast_recurse(Expr* expr)
 
         free(assign);
         break;
-
-    case EXPR_FUNC_CALL:
+    }
+    case EXPR_FUNC_CALL: {
         ASTFuncCall* call = expr->as.func_call;
         if (call == NULL)
             break;
 
-        free(call->identifier);
+        free((void*)call->identifier);
 
         if (call->args != NULL) {
-            for (int i = 0; i < call->arg_count; i++) {
+            for (size_t i = 0; i < call->arg_count; i++) {
                 free_ast_recurse(call->args[i]);
             }
 
@@ -322,17 +327,17 @@ void free_ast_recurse(Expr* expr)
 
         free(call);
         break;
-
-    case EXPR_EXTERNAL:
+    }
+    case EXPR_EXTERNAL: {
         ASTExtrnDef* extrn = expr->as.extrn_def;
         if (extrn == NULL)
             break;
 
-        free(extrn->identifier);
+        free((void*)extrn->identifier);
         free(extrn);
         break;
-
-    case EXPR_LITERAL:
+    }
+    case EXPR_LITERAL: {
         ASTLiteral* lit = expr->as.literal;
         if (lit == NULL)
             break;
@@ -343,7 +348,7 @@ void free_ast_recurse(Expr* expr)
 
         free(lit);
         break;
-
+    }
     case EXPR_TYPE:
     default:
         break;

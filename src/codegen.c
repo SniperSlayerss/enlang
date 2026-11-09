@@ -18,6 +18,10 @@ void display_traverse_tree(Expr* expr)
         break;
     case EXPR_VAR_ASSIGN:
         display_traverse_tree(expr->as.var_assign->assign_expr);
+        break;
+    case EXPR_TYPE:
+        NOB_TODO("EXPR_TYPE");
+        break;
     }
 }
 
@@ -37,9 +41,19 @@ char* codegen_get_type(DataType type)
         return "i32";
     case TYPE_STRING:
         return "str";
-    defualt:
+    case TYPE_INT8:
+    case TYPE_INT16:
+    case TYPE_INT64:
+    case TYPE_UINT8:
+    case TYPE_UINT16:
+    case TYPE_UINT32:
+    case TYPE_UINT64:
+    case TYPE_FLOAT:
+    case TYPE_CHAR:
         NOB_TODO("Not implemented data type yet");
+        break;
     }
+    NOB_UNREACHABLE("Type does not exist");
 }
 
 void codegen_traverse_expr(Expr* expr, ASTInfo* info, CodeFuncDef* current_func)
@@ -48,7 +62,7 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, CodeFuncDef* current_func)
         return;
 
     switch (expr->type) {
-    case EXPR_FUNC_DEF: // Has Expr** body
+    case EXPR_FUNC_DEF: { // Has Expr** body
         ASTFuncDef* expr_func_def = expr->as.func_def;
 
         if (expr_func_def == NULL)
@@ -63,20 +77,22 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, CodeFuncDef* current_func)
         da_init(func_def->func_call_array);
         da_init(func_def->literal_array);
 
-            for (int i = 0; i < expr_func_def->body_count; i++) {
-                codegen_traverse_expr(expr_func_def->body[i], info, func_def);
-            }
+        for (int i = 0; i < expr_func_def->body_count; i++) {
+            codegen_traverse_expr(expr_func_def->body[i], info, func_def);
+        }
 
         da_append(info->func_defs, func_def);
         break;
-    case EXPR_VAR_ASSIGN: // Has Expr* expression
+    }
+    case EXPR_VAR_ASSIGN: { // Has Expr* expression
         ASTVarAssign* expr_var_assign = expr->as.var_assign;
         if (expr_var_assign == NULL)
             break;
 
         codegen_traverse_expr(expr_var_assign->assign_expr, info, current_func);
         break;
-    case EXPR_FUNC_CALL:
+    }
+    case EXPR_FUNC_CALL: {
         ASTFuncCall* expr_func_call = expr->as.func_call;
         if (expr_func_call == NULL)
             break;
@@ -90,19 +106,21 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, CodeFuncDef* current_func)
         }
 
         if (expr_func_call->args != NULL) {
-            for (int i = 0; i < expr_func_call->arg_count; i++) {
+            for (size_t i = 0; i < expr_func_call->arg_count; i++) {
                 codegen_traverse_expr(expr_func_call->args[i], info, current_func);
             }
         }
         break;
-    case EXPR_EXTERNAL:
+    }
+    case EXPR_EXTERNAL: {
         ASTExtrnDef* expr_extrn = expr->as.extrn_def;
         if (!info->externals.data) {
             da_init(info->externals);
         }
         da_append(info->externals, expr_extrn->identifier);
         break;
-    case EXPR_LITERAL:
+    }
+    case EXPR_LITERAL: {
         ASTLiteral* expr_literal = expr->as.literal;
 
         if (expr_literal == NULL)
@@ -131,8 +149,9 @@ void codegen_traverse_expr(Expr* expr, ASTInfo* info, CodeFuncDef* current_func)
             da_append(info->global_literals, literal);
         }
         break;
+    }
     case EXPR_TYPE:
-    default:
+        NOB_TODO("EXPR_TYPE");
         break;
     }
 }
@@ -186,7 +205,7 @@ void free_ast_info(ASTInfo* ast_info)
     // function defs
     for (int i = 0; i < ast_info->func_defs.size; i++) {
 
-        CodeFuncDef *f = ast_info->func_defs.data[i];
+        CodeFuncDef* f = ast_info->func_defs.data[i];
 
         // func call array
         for (int j = 0; j < f->func_call_array.size; j++) {
@@ -196,9 +215,9 @@ void free_ast_info(ASTInfo* ast_info)
 
         // literal array
         for (int j = 0; j < f->literal_array.size; j++) {
-            CodeLiteral *lit = f->literal_array.data[j];
-            free(lit->label);    // allocated by malloc(len)
-            free(lit);           // free literal struct
+            CodeLiteral* lit = f->literal_array.data[j];
+            free(lit->label); // allocated by malloc(len)
+            free(lit); // free literal struct
         }
         free(f->literal_array.data);
 
@@ -208,7 +227,7 @@ void free_ast_info(ASTInfo* ast_info)
 
     // global literals
     for (int i = 0; i < ast_info->global_literals.size; i++) {
-        CodeLiteral *lit = ast_info->global_literals.data[i];
+        CodeLiteral* lit = ast_info->global_literals.data[i];
         free(lit->label);
         free(lit);
     }

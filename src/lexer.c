@@ -313,11 +313,16 @@ static inline const char* log_token(Token token)
     case TOKEN_SUB:
     case TOKEN_DIV:
     case TOKEN_MULT:
-    case TOKEN_EXP:
+    case TOKEN_EXP: {
         static char buf[2];
         buf[0] = token.value.as_char;
         buf[1] = '\0';
         return buf;
+    }
+    case TOKEN_ILLEGAL:
+        return "Illegal";
+    case TOKEN_EOF:
+        return "EOF";
     }
     return "<unknown>";
 }
