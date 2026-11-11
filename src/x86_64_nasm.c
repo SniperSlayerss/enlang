@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "lexer.h"
 #include "nob.h"
 #include "parser.h"
 #include <stdlib.h>
@@ -52,7 +53,6 @@ typedef struct {
     // Function scope
     ASTFuncDef* current_func;
     size_t num_of_func_lit;
-    size_t num_of_stack_args;
     bool contains_external;
 
     // Literal scope
@@ -70,14 +70,44 @@ void emit_notes(StringBuilder* out, ASTInfo* info)
 void emit_data_literal(StringBuilder* out, CodeLiteral* literal)
 {
     switch (literal->type) {
+    case TYPE_CHAR:
+        sb_appendf(out, "    %s db %d\n", literal->label, literal->value.as_char);
+        break;
+    case TYPE_STRING:
+        sb_appendf(out, "    %s db `%s`, 0\n", literal->label, literal->value.as_string);
+        break;
+    case TYPE_FLOAT:
+        sb_appendf(out, "    %s dq %lf\n", literal->label, literal->value.as_float);
+        break;
     case TYPE_DOUBLE:
         sb_appendf(out, "    %s dq %lf\n", literal->label, literal->value.as_double);
+        break;
+    case TYPE_LONG_DOUBLE:
+        sb_appendf(out, "    %s dt %lf\n", literal->label, literal->value.as_long_double); // TODO check this works
+        break;
+    case TYPE_INT8:
+        sb_appendf(out, "    %s db %d\n", literal->label, literal->value.as_int8);
+        break;
+    case TYPE_INT16:
+        sb_appendf(out, "    %s dw %d\n", literal->label, literal->value.as_int16);
         break;
     case TYPE_INT32:
         sb_appendf(out, "    %s dd %d\n", literal->label, literal->value.as_int32);
         break;
-    case TYPE_STRING:
-        sb_appendf(out, "    %s db `%s`, 0\n", literal->label, literal->value.as_string);
+    case TYPE_INT64:
+        sb_appendf(out, "    %s dq %d\n", literal->label, literal->value.as_int64);
+        break;
+    case TYPE_UINT8:
+        sb_appendf(out, "    %s db %d\n", literal->label, literal->value.as_uint8);
+        break;
+    case TYPE_UINT16:
+        sb_appendf(out, "    %s dw %d\n", literal->label, literal->value.as_uint16);
+        break;
+    case TYPE_UINT32:
+        sb_appendf(out, "    %s dd %d\n", literal->label, literal->value.as_uint32);
+        break;
+    case TYPE_UINT64:
+        sb_appendf(out, "    %s dq %d\n", literal->label, literal->value.as_uint64);
         break;
     default:
         NOB_TODO("Add more type literals");
@@ -133,9 +163,12 @@ void emit_externals(StringBuilder* out, ASTInfo* info)
     }
 }
 
-void emit_arg(StringBuilder* out, ASTContext* context, NASMLiteral* literal, size_t arg)
+// size_t arg is which argument it is, 64-bit and 32-bit share registers
+// - arg should be the number of already existing arguments irrespective of size
+// floating point have their own xmm registers and so have their own arg counter
+// TODO expand the explanation
+void emit_arg(StringBuilder* out, NASMLiteral* literal, size_t arg)
 {
-
     char* label;
     if (literal->literal_type != TYPE_STRING) { // TODO: handle this better? does this make sense for all literals?
         int len = snprintf(NULL, 0, "[rel %s]", literal->literal_label) + 1;
@@ -145,42 +178,105 @@ void emit_arg(StringBuilder* out, ASTContext* context, NASMLiteral* literal, siz
         label = literal->literal_label;
     }
 
+    // TODO i think this can be condensed
     switch (literal->literal_type) {
+    case TYPE_FLOAT:
+        if (arg < MAX_REG_ARGS_FLOAT) {
+            sb_appendf(out, "    movss %s, %s\n", arg_registers_floating[arg], label);
+        } else {
+            sb_appendf(out, "    push dword %s\n", label);
+        }
+        break;
     case TYPE_DOUBLE:
         if (arg < MAX_REG_ARGS_FLOAT) {
             sb_appendf(out, "    movsd %s, %s\n", arg_registers_floating[arg], label);
         } else {
             sb_appendf(out, "    push qword %s\n", label);
-            context->num_of_stack_args++;
+        }
+        break;
+    case TYPE_LONG_DOUBLE:
+        NOB_TODO("LONG DOUBLE");
+        break;
+    case TYPE_CHAR:
+        if (arg < MAX_REG_ARGS_64) {
+            sb_appendf(out, "    mov %s, byte %s\n", arg_registers_64[arg], label);
+        } else {
+            sb_appendf(out, "    movsx eax, byte %s\n", label);
+            sb_appendf(out, "    push %s\n", label);
         }
         break;
     case TYPE_STRING:
         if (arg < MAX_REG_ARGS_64) {
-            sb_appendf(out, "    mov %s, %s\n", arg_registers_64[arg], label);
+            sb_appendf(out, "    mov %s, %s\n", arg_registers_64[arg], label); // TODO do i need something before the label? byte?
         } else {
             sb_appendf(out, "    push %s\n", label);
-            context->num_of_stack_args++;
-        }
-        break;
-
-    case TYPE_INT32:
-        if (arg < MAX_REG_ARGS_32) {
-            sb_appendf(out, "    mov %s, %s\n", arg_registers_32[arg], label);
-        } else {
-            sb_appendf(out, "    push qword %s\n", label);
-            context->num_of_stack_args++;
         }
         break;
 
     case TYPE_INT8:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    movsx %s, byte %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    movsx rax, byte %s\n", label);
+            sb_appendf(out, "    push rax");
+        }
+        break;
     case TYPE_INT16:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    movsx %s, word %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    movsx rax, word %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
+    case TYPE_INT32:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    mov %s, dword %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    movsxd rax, dword %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
+
     case TYPE_INT64:
+        if (arg < MAX_REG_ARGS_64) {
+            sb_appendf(out, "    mov %s, %s\n", arg_registers_64[arg], label);
+        } else {
+            sb_appendf(out, "    mov rax, qword %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
     case TYPE_UINT8:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    movzx %s, byte %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    movzx eax, byte %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
     case TYPE_UINT16:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    movzx %s, word %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    movzx eax, word %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
     case TYPE_UINT32:
+        if (arg < MAX_REG_ARGS_32) {
+            sb_appendf(out, "    mov %s, dword %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    mov eax, dword %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
+        break;
     case TYPE_UINT64:
-    case TYPE_FLOAT:
-    case TYPE_CHAR:
+        if (arg < MAX_REG_ARGS_64) {
+            sb_appendf(out, "    mov %s, %s\n", arg_registers_32[arg], label);
+        } else {
+            sb_appendf(out, "    mov rax, %s\n", label);
+            sb_appendf(out, "    push rax\n");
+        }
         break;
     }
 
@@ -230,6 +326,7 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         // deal with stack for local variables
 
         // align stack if calling external functions
+        // TODO Check this is correct with new types
         if (context->contains_external)
             sb_append(out, "    and rsp, -16\n");
 
@@ -255,7 +352,6 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
 
     case EXPR_FUNC_CALL: {
         ASTFuncCall* expr_func_call = expr->as.func_call;
-        context->num_of_stack_args = 0;
 
         if (expr_func_call == NULL)
             break;
@@ -274,23 +370,41 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         for (size_t i = 0; i < expr_func_call->arg_count; i++) {
             traverse_ast(out, context, expr->as.func_call->args[i]);
             switch (context->current_literal->literal_type) {
+            case TYPE_FLOAT:
             case TYPE_DOUBLE:
+            case TYPE_LONG_DOUBLE:
                 floating_count++;
                 da_append(floating_args, context->current_literal);
                 break;
+            case TYPE_INT8:
+            case TYPE_INT16:
             case TYPE_INT32:
+            case TYPE_INT64:
+            case TYPE_UINT8:
+            case TYPE_UINT16:
+            case TYPE_UINT32:
+            case TYPE_UINT64:
+            case TYPE_CHAR:
             case TYPE_STRING:
                 normal_count++;
                 da_append(normal_args, context->current_literal);
                 break;
             default:
-                free(context->current_literal->literal_label);
-                break;
+                NOB_UNREACHABLE("Type not implemented");
             }
         }
 
+        size_t num_of_stack_args = 0;
+        if (normal_args.size > MAX_REG_ARGS_64)
+            num_of_stack_args += normal_args.size - MAX_REG_ARGS_64;
+        if (floating_args.size > MAX_REG_ARGS_FLOAT)
+            num_of_stack_args += normal_args.size - MAX_REG_ARGS_FLOAT;
+
+        if (num_of_stack_args % 2 == 1)
+            sb_appendf(out, "    sub rsp, 8\n");
+
         for (size_t i = normal_args.size; i > 0; i--) {
-            emit_arg(out, context, normal_args.data[i - 1], i - 1);
+            emit_arg(out, normal_args.data[i - 1], i - 1);
 
             if (normal_args.data[i - 1]->literal_type != TYPE_STRING) {
                 free(normal_args.data[i - 1]->literal_label);
@@ -300,12 +414,12 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
         da_free(normal_args);
 
         for (int i = floating_args.size; i > 0; i--) {
-            emit_arg(out, context, floating_args.data[i-1], i-1);
+            emit_arg(out, floating_args.data[i - 1], i - 1);
 
-            if (floating_args.data[i-1]->literal_type != TYPE_STRING) {
-                free(floating_args.data[i-1]->literal_label);
+            if (floating_args.data[i - 1]->literal_type != TYPE_STRING) {
+                free(floating_args.data[i - 1]->literal_label);
             }
-            free(floating_args.data[i-1]);
+            free(floating_args.data[i - 1]);
         }
         da_free(floating_args);
 
@@ -315,7 +429,13 @@ void traverse_ast(StringBuilder* out, ASTContext* context, Expr* expr)
             sb_appendf(out, "    mov rax, %d\n", (MAX_REG_ARGS_FLOAT <= floating_count) ? MAX_REG_ARGS_FLOAT : floating_count);
         }
         sb_appendf(out, "    call %s\n", expr_func_call->identifier);
-        sb_appendf(out, "    add rsp, %d\n", context->num_of_stack_args * 8);
+        if (num_of_stack_args > 0) {
+            if (num_of_stack_args % 2 == 1)
+                sb_appendf(out, "    add rsp, %d\n", (num_of_stack_args * 8) + 8);
+            else
+                sb_appendf(out, "    add rsp, %d\n", (num_of_stack_args * 8));
+        }
+
         sb_append_char(out, '\n');
 
         if (codegen_is_external_call(context->info, expr_func_call->identifier))

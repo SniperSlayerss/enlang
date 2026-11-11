@@ -1,4 +1,4 @@
-let x equal 5 as int16.
+let x as int32 equal 5.
 
 external printf.
 

@@ -35,22 +35,32 @@ void display_ast_tree(Expr** ast)
 char* codegen_get_type(DataType type)
 {
     switch (type) {
-    case TYPE_DOUBLE:
-        return "dbl";
-    case TYPE_INT32:
-        return "i32";
+    case TYPE_CHAR:
+        return "chr";
     case TYPE_STRING:
         return "str";
-    case TYPE_INT8:
-    case TYPE_INT16:
-    case TYPE_INT64:
-    case TYPE_UINT8:
-    case TYPE_UINT16:
-    case TYPE_UINT32:
-    case TYPE_UINT64:
     case TYPE_FLOAT:
-    case TYPE_CHAR:
-        NOB_TODO("Not implemented data type yet");
+        return "flt";
+    case TYPE_DOUBLE:
+        return "db";
+    case TYPE_LONG_DOUBLE:
+        return "ldb";
+    case TYPE_INT8:
+        return "i8";
+    case TYPE_INT16:
+        return "i16";
+    case TYPE_INT32:
+        return "i32";
+    case TYPE_INT64:
+        return "i64";
+    case TYPE_UINT8:
+        return "u8";
+    case TYPE_UINT16:
+        return "u16";
+    case TYPE_UINT32:
+        return "u32";
+    case TYPE_UINT64:
+        return "u64";
         break;
     }
     NOB_UNREACHABLE("Type does not exist");

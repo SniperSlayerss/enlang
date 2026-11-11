@@ -5,21 +5,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LOG_ERR(fmt, ...)                          \
-    fprintf(stderr, "ERROR [%s:%d %s]: " fmt "\n", \
-        __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#define LOG_ERR_AND_EXIT(fmt, ...)                    \
+    fprintf(stderr, "ERROR [%s:%d %s]: " fmt "\n",    \
+        __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+    exit(1);
 
-#define da_new(T, name)  \
+#define da_new(T, name)   \
     struct {              \
         T* data;          \
         size_t size, cap; \
     } name = { NULL, 0, 0 }
 
-#define da_init(ptr)          \
-    do {                      \
-        (ptr).data = NULL;    \
-        (ptr).size = 0;       \
-        (ptr).cap = 0;        \
+#define da_init(ptr)       \
+    do {                   \
+        (ptr).data = NULL; \
+        (ptr).size = 0;    \
+        (ptr).cap = 0;     \
     } while (0)
 
 #define _da_reserve(arr)                                                \
@@ -54,26 +55,32 @@ typedef struct {
     size_t capacity;
 } StringBuilder;
 
-static inline StringBuilder* sb_create(void) {
+static inline StringBuilder* sb_create(void)
+{
     StringBuilder* sb = malloc(sizeof(StringBuilder));
-    if (!sb) return NULL;
+    if (!sb)
+        return NULL;
     sb->msg = NULL;
     sb->size = 0;
     sb->capacity = 0;
     return sb;
 }
 
-static inline void sb_init(StringBuilder* sb) {
+static inline void sb_init(StringBuilder* sb)
+{
     sb->msg = NULL;
     sb->size = 0;
     sb->capacity = 0;
 }
 
-static inline void sb_reserve(StringBuilder* sb, size_t min_capacity) {
-    if (sb->capacity >= min_capacity) return;
+static inline void sb_reserve(StringBuilder* sb, size_t min_capacity)
+{
+    if (sb->capacity >= min_capacity)
+        return;
 
     size_t new_cap = sb->capacity ? sb->capacity * 2 : 8;
-    while (new_cap < min_capacity) new_cap *= 2;
+    while (new_cap < min_capacity)
+        new_cap *= 2;
 
     char* new_msg = realloc(sb->msg, new_cap);
     if (!new_msg) {
@@ -85,7 +92,8 @@ static inline void sb_reserve(StringBuilder* sb, size_t min_capacity) {
     sb->capacity = new_cap;
 }
 
-static inline void sb_append_char(StringBuilder* sb, char c) {
+static inline void sb_append_char(StringBuilder* sb, char c)
+{
     if (sb->size + 2 > sb->capacity) {
         sb_reserve(sb, sb->size + 2);
     }
@@ -93,11 +101,14 @@ static inline void sb_append_char(StringBuilder* sb, char c) {
     sb->msg[sb->size] = '\0';
 }
 
-static inline void sb_append(StringBuilder* sb, const char* str) {
-    if (!str) return;
+static inline void sb_append(StringBuilder* sb, const char* str)
+{
+    if (!str)
+        return;
 
     size_t str_len = strlen(str);
-    if (str_len == 0) return;
+    if (str_len == 0)
+        return;
 
     if (sb->size + str_len + 1 > sb->capacity) {
         sb_reserve(sb, sb->size + str_len + 1);
@@ -108,7 +119,8 @@ static inline void sb_append(StringBuilder* sb, const char* str) {
     sb->msg[sb->size] = '\0';
 }
 
-static inline void sb_appendf(StringBuilder* sb, const char* format, ...) {
+static inline void sb_appendf(StringBuilder* sb, const char* format, ...)
+{
     va_list args;
     va_start(args, format);
 
@@ -135,22 +147,28 @@ static inline void sb_appendf(StringBuilder* sb, const char* format, ...) {
     va_end(args);
 }
 
-static inline void sb_free_contents(StringBuilder* sb) {
-    if (!sb) return;
+static inline void sb_free_contents(StringBuilder* sb)
+{
+    if (!sb)
+        return;
     free(sb->msg);
     sb->msg = NULL;
     sb->size = 0;
     sb->capacity = 0;
 }
 
-static inline void sb_free(StringBuilder* sb) {
-    if (!sb) return;
+static inline void sb_free(StringBuilder* sb)
+{
+    if (!sb)
+        return;
     sb_free_contents(sb);
     free(sb);
 }
 
-static inline char* sb_take_string(StringBuilder* sb) {
-    if (!sb) return NULL;
+static inline char* sb_take_string(StringBuilder* sb)
+{
+    if (!sb)
+        return NULL;
 
     char* result = sb->msg;
 
@@ -162,11 +180,13 @@ static inline char* sb_take_string(StringBuilder* sb) {
     return result;
 }
 
-static inline char* sb_take_string_safe(StringBuilder* sb) {
+static inline char* sb_take_string_safe(StringBuilder* sb)
+{
     if (!sb || !sb->msg) {
         // Return empty string if StringBuilder is NULL or empty
         char* empty = malloc(1);
-        if (empty) empty[0] = '\0';
+        if (empty)
+            empty[0] = '\0';
         return empty;
     }
 

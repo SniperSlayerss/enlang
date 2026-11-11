@@ -3,7 +3,7 @@ external exit.
 
 run main:
     printf("Hello %s\n", "world!"),
-    printf("int32: %d\n", 1337),
-    printf("double: %lf\n", 12.34),
-    printf("Lets push onto the stack! %d %d %d %d %d %d %d %d\n", 1, 2, 3, 4, 5, 6, 7, 8),
-    exit(42).
+    printf("int32: %d\n", 1337 as int32),
+    printf("double: %f\n", 12.34 as float),
+    printf("Lets push onto the stack! %d %d %d %d %d %d %d %d\n", 1 as int8, 2 as uint16, 3 as int32, 4 as uint64, 5 as uint8, 6 as int16, 7 as uint32, 8 as int64),
+    exit(42 as int32).

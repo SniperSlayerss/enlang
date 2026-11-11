@@ -1,21 +1,24 @@
 // using libraries:
-//      standard
+//      standard,
 //      math.
 
-// define [function_name] to return type [return_type | int32]
+// define [function_name] which returns type [type] with arguments:
+
+// let [variable_name] as [type] equal [expression].
 
 // function defintion
 define times_func which returns type int32 with arguments:
        x as a list of list of float32,
        y as a list of float32,
        z as a 2D array of float32:
-       let result equal x times y times z;
+       let result equal x times y times z,
        call foo with bar.
 
 // variable definition
-let x as int16 equal 5.
+let x equal 5 as int16.
+let x equal 5 as int16, let y equal 10 as int16 .
 
-let baz equal call time_func with x, y, and z.
+let baz as int16 equal call time_func with x, y, and 4 as int16.
 
 // function call
 call foo with bar.

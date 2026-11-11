@@ -2,6 +2,7 @@
 #define LEXER_H
 #include "utils.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 typedef enum {
@@ -53,6 +54,7 @@ typedef enum {
     TYPE_UINT64,
     TYPE_FLOAT,
     TYPE_DOUBLE,
+    TYPE_LONG_DOUBLE,
     TYPE_CHAR,
     TYPE_STRING,
 } DataType;
@@ -60,14 +62,22 @@ typedef enum {
 typedef union {
     char as_char;
     char* as_string;
+    int8_t as_int8;
+    int16_t as_int16;
     int32_t as_int32;
+    int64_t as_int64;
+    uint8_t as_uint8;
+    uint16_t as_uint16;
+    uint32_t as_uint32;
+    uint64_t as_uint64;
     float as_float;
     double as_double;
+    long double as_long_double; // TODO maybe rework the float, double, and long double
 } LiteralValues;
 
 typedef struct {
     TokenType type;
-    LiteralValues value;
+    char* value;
     DataType data_type;
 } Token;
 

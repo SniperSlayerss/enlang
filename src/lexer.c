@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include "utils.h"
 #include <ctype.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,9 +28,10 @@ bool get_next_char(LexerContext* lc)
     return true;
 }
 
+// TODO Crash instead of returning bool?
 bool lex_get_next_token(LexerContext* lc)
 {
-    Token token;
+    Token token = { 0 };
 
     if (!lc->current_char) {
         get_next_char(lc);
@@ -41,6 +43,23 @@ bool lex_get_next_token(LexerContext* lc)
             lc->token = token;
             return false;
         }
+    }
+
+    if (lc->current_char == '\'') {
+        get_next_char(lc);
+        char c = lc->current_char;
+        get_next_char(lc);
+        if (c != '\'') {
+            LOG_ERR_AND_EXIT("Not a char enclosed in ''")
+        }
+        get_next_char(lc);
+
+        token.type = TOKEN_LITERAL;
+        token.data_type = TYPE_CHAR;
+        token.value = (char[2]) { c, '\0' }; // TODO this feels wrong
+        lc->token = token;
+
+        return true;
     }
 
     if (lc->current_char == '"') {
@@ -62,7 +81,7 @@ bool lex_get_next_token(LexerContext* lc)
 
         token.type = TOKEN_LITERAL;
         token.data_type = TYPE_STRING;
-        token.value.as_string = sb_take_string(&sb);
+        token.value = sb_take_string(&sb);
         lc->token = token;
 
         return true;
@@ -169,6 +188,10 @@ bool lex_get_next_token(LexerContext* lc)
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_DOUBLE;
             is_keyword = true;
+        } else if (!strcmp(sb.msg, "longdouble")) { // TODO rework
+            token.type = TOKEN_TYPE;
+            token.data_type = TYPE_LONG_DOUBLE;
+            is_keyword = true;
         } else if (!strcmp(sb.msg, "char")) {
             token.type = TOKEN_TYPE;
             token.data_type = TYPE_CHAR;
@@ -181,7 +204,7 @@ bool lex_get_next_token(LexerContext* lc)
         if (is_keyword) {
             sb_free_contents(&sb);
         } else {
-            token.value.as_string = sb_take_string(&sb);
+            token.value = sb_take_string(&sb);
         }
 
         lc->token = token;
@@ -218,15 +241,19 @@ bool lex_get_next_token(LexerContext* lc)
             char* number_str = sb_take_string(&sb);
 
             // TODO: accept different literal types with postfix
+            // Accept as string, let parser figure out if type makes sense
             // i.e. 2.0 as float or 2.0f as per C
-            if (has_decimal) { // double
-                token.data_type = TYPE_DOUBLE;
-                token.value.as_double = strtod(number_str, NULL);
-            } else { // int32_t
-                token.data_type = TYPE_INT32;
-                token.value.as_int32 = (int32_t)strtol(number_str, NULL, 10);
-            }
-            free(number_str);
+            // if (has_decimal) { // double
+            //     token.data_type = TYPE_DOUBLE;
+            //     token.value.as_double = strtod(number_str, NULL);
+            // } else { // int32_t
+            //     token.data_type = TYPE_INT64;
+            //     token.value.as_int32 = strtol(number_str, NULL, 10);
+            // }
+            // free(number_str);
+
+            token.value = number_str;
+
             lc->token = token;
             return true;
         }
@@ -265,14 +292,14 @@ bool lex_get_next_token(LexerContext* lc)
 
     // Must be special token if not null
     if (token.type) {
-        token.value.as_char = lc->current_char;
+        token.value = &lc->current_char;
         lc->token = token;
         get_next_char(lc);
         return true;
     }
 
     token.type = TOKEN_ILLEGAL;
-    token.value.as_char = lc->current_char;
+    token.value = &lc->current_char;
     printf("ERROR: unexpected token %c\n", lc->current_char);
     return false;
 }
@@ -281,7 +308,7 @@ static inline const char* log_token(Token token)
 {
     switch (token.type) {
     case TOKEN_IDENTIFIER:
-        return token.value.as_string;
+        return token.value;
     case TOKEN_TYPE:
         return "type";
     case TOKEN_LITERAL:
@@ -300,7 +327,7 @@ static inline const char* log_token(Token token)
     case TOKEN_RUN:
     case TOKEN_AS:
     case TOKEN_A:
-        return token.value.as_string;
+        return token.value;
     case TOKEN_SEMI_COLON:
     case TOKEN_COLON:
     case TOKEN_PERIOD:
@@ -315,7 +342,7 @@ static inline const char* log_token(Token token)
     case TOKEN_MULT:
     case TOKEN_EXP: {
         static char buf[2];
-        buf[0] = token.value.as_char;
+        buf[0] = *token.value;
         buf[1] = '\0';
         return buf;
     }
@@ -327,6 +354,7 @@ static inline const char* log_token(Token token)
     return "<unknown>";
 }
 
+// TODO Fill out each keyword string
 static inline void log_token_error_inline(Token token, TokenType expected, const char* file, int line, const char* func)
 {
     const char* token_str = log_token(token);
